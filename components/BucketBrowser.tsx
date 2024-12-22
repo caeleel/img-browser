@@ -349,7 +349,7 @@ export default function BucketBrowser({ credentials, onLogout }: BucketBrowserPr
                       const url = await fetchFile(item, credentials);
                       setSelectedVideo({ ...item, url });
                     } catch (error) {
-                      alert('Failed to load video');
+                      console.error('Failed to load video', error);
                     } finally {
                       setLoadingVideo('');
                     }
