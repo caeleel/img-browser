@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import Login from '../components/Login';
 import BucketBrowser from '../components/BucketBrowser';
+import { clearS3Cache } from '../utils/s3';
 
 export default function Home() {
   const [credentials, setCredentials] = useState<{
@@ -27,6 +28,7 @@ export default function Home() {
 
   const handleLogout = () => {
     localStorage.removeItem('doCredentials');
+    clearS3Cache();
     setCredentials(null);
   };
 
@@ -44,7 +46,6 @@ export default function Home() {
         <Login onLogin={handleLogin} />
       ) : (
         <BucketBrowser
-          credentials={credentials}
           onLogout={handleLogout}
         />
       )}

@@ -4,19 +4,11 @@ import { useState, useEffect, useMemo } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import VideoPlayer from './VideoPlayer';
 import ImageViewer from './ImageViewer';
-import { fetchFile, listContents } from '../utils/s3';
+import { fetchFile, listContents, signedUrl } from '../utils/s3';
 import type { BucketItem, BucketItemWithBlob } from '../types';
 
 const IMAGE_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.gif', '.webp'];
 const VIDEO_EXTENSIONS = ['.mp4', '.ts', '.mov'];
-
-interface BucketBrowserProps {
-  credentials: {
-    accessKeyId: string;
-    secretAccessKey: string;
-  };
-  onLogout: () => void;
-}
 
 const PAGE_SIZE = 25;
 const ROOT_CONTENTS: BucketItemWithBlob[] = [
@@ -26,7 +18,7 @@ const ROOT_CONTENTS: BucketItemWithBlob[] = [
 ];
 let nextSelectedImage: BucketItemWithBlob | null = null;
 
-export default function BucketBrowser({ credentials, onLogout }: BucketBrowserProps) {
+export default function BucketBrowser({ onLogout }: { onLogout: () => void; }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [currentPath, setCurrentPath] = useState(searchParams.get('path') || '');
@@ -56,10 +48,10 @@ export default function BucketBrowser({ credentials, onLogout }: BucketBrowserPr
       await Promise.allSettled(
         imageItems.map(async (item, i) => {
           try {
-            const blobUrl = await fetchFile(item, credentials);
+            const blobUrl = await fetchFile(item);
             item.blobUrl = blobUrl;
             if (item.path === nextSelectedImage?.path) {
-              setSelectedImage({
+              setNextImage({
                 ...item,
               });
             }
@@ -97,7 +89,7 @@ export default function BucketBrowser({ credentials, onLogout }: BucketBrowserPr
       let continuationToken: string | undefined;
 
       do {
-        const data = await listContents(currentPath, credentials, continuationToken);
+        const data = await listContents(currentPath, continuationToken);
 
         const newItems: BucketItemWithBlob[] = [
           ...(data.CommonPrefixes || []).map((prefix) => ({
@@ -265,10 +257,10 @@ export default function BucketBrowser({ credentials, onLogout }: BucketBrowserPr
           handlePageChange(page);
         }
 
-        setNextImage(imageToView);
+        setSelectedImage(imageToView);
       }
     } else if (!urlImage) {
-      setNextImage(null);
+      setSelectedImage(null);
     }
   }, [searchParams, allContents]);
 
@@ -343,7 +335,7 @@ export default function BucketBrowser({ credentials, onLogout }: BucketBrowserPr
                   onClick={async () => {
                     try {
                       setLoadingVideo(item.path);
-                      const url = await fetchFile(item, credentials);
+                      const url = await signedUrl(item);
                       setSelectedVideo({ ...item, url });
                     } catch (error) {
                       console.error('Failed to load video', error);
@@ -359,7 +351,7 @@ export default function BucketBrowser({ credentials, onLogout }: BucketBrowserPr
                     ) : (
                       <div className="text-4xl mb-2">🎥</div>
                     )}
-                    <div className="text-sm text-gray-600 px-2 truncate">
+                    <div className="text-sm text-gray-300 px-2 truncate">
                       {item.name}
                     </div>
                   </div>

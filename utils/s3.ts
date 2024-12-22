@@ -1,23 +1,47 @@
 import { S3Client, GetObjectCommand, ListObjectsV2Command } from '@aws-sdk/client-s3';
-import { BucketItem, S3Response, S3Credentials } from '../types';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+import { BucketItem, S3Response } from '../types';
 
 const BUCKET_NAME = 'terencefischer';
 const REGION = 'sfo3';
 const ENDPOINT = 'https://sfo3.digitaloceanspaces.com';
 
-function getS3Client(credentials: S3Credentials) {
-  return new S3Client({
+let cachedS3Client: S3Client | null = null;
+
+function getCredentials() {
+  const savedCredentials = localStorage.getItem('doCredentials');
+  if (!savedCredentials) {
+    throw new Error('No credentials found');
+  }
+  return JSON.parse(savedCredentials);
+}
+
+function getS3Client() {
+  if (cachedS3Client) {
+    return cachedS3Client;
+  }
+
+  const { accessKeyId, secretAccessKey } = getCredentials();
+
+  cachedS3Client = new S3Client({
     region: REGION,
     endpoint: ENDPOINT,
     credentials: {
-      accessKeyId: credentials.accessKeyId,
-      secretAccessKey: credentials.secretAccessKey,
+      accessKeyId,
+      secretAccessKey,
     }
   });
+
+  return cachedS3Client;
 }
 
-export async function fetchFile(item: BucketItem, credentials: S3Credentials): Promise<string> {
-  const s3Client = getS3Client(credentials);
+// Function to clear the cached client (useful when credentials change)
+export function clearS3Cache() {
+  cachedS3Client = null;
+}
+
+export async function fetchFile(item: BucketItem): Promise<string> {
+  const s3Client = getS3Client();
 
   const command = new GetObjectCommand({
     Bucket: BUCKET_NAME,
@@ -30,7 +54,6 @@ export async function fetchFile(item: BucketItem, credentials: S3Credentials): P
     throw new Error('No file content received');
   }
 
-  // Convert the readable stream to a blob
   const responseArrayBuffer = await response.Body.transformToByteArray();
   const blob = new Blob([responseArrayBuffer], {
     type: response.ContentType || 'application/octet-stream'
@@ -39,8 +62,8 @@ export async function fetchFile(item: BucketItem, credentials: S3Credentials): P
   return URL.createObjectURL(blob);
 }
 
-export async function listContents(path: string, credentials: S3Credentials, continuationToken?: string): Promise<S3Response> {
-  const s3Client = getS3Client(credentials);
+export async function listContents(path: string, continuationToken?: string): Promise<S3Response> {
+  const s3Client = getS3Client();
 
   const firstDir = path.split('/')[0];
   if (firstDir !== 'photos' && firstDir !== 'videos' && firstDir !== 'thumbnails') {
@@ -62,4 +85,16 @@ export async function listContents(path: string, credentials: S3Credentials, con
     NextContinuationToken: response.NextContinuationToken,
     IsTruncated: response.IsTruncated || false
   };
+}
+
+export async function signedUrl(item: BucketItem): Promise<string> {
+  const s3Client = getS3Client();
+
+  const command = new GetObjectCommand({
+    Bucket: BUCKET_NAME,
+    Key: item.key,
+  });
+
+  // URL expires in 1 hour
+  return getSignedUrl(s3Client, command, { expiresIn: 3600 });
 } 
