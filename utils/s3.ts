@@ -42,6 +42,11 @@ export async function fetchFile(item: BucketItem, credentials: S3Credentials): P
 export async function listContents(path: string, credentials: S3Credentials, continuationToken?: string): Promise<S3Response> {
   const s3Client = getS3Client(credentials);
 
+  const firstDir = path.split('/')[0];
+  if (firstDir !== 'photos' && firstDir !== 'videos' && firstDir !== 'thumbnails') {
+    throw new Error('Invalid path');
+  }
+
   const command = new ListObjectsV2Command({
     Bucket: BUCKET_NAME,
     Prefix: path,
