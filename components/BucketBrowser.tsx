@@ -159,6 +159,16 @@ export default function BucketBrowser({ credentials, onLogout }: BucketBrowserPr
     await updateCurrentPageContents(page);
   };
 
+  const setNextImage = (item: BucketItemWithBlob | null) => {
+    setSelectedImage(item);
+    if (!item?.blobUrl) {
+      nextSelectedImage = item;
+    } else {
+      nextSelectedImage = null;
+    }
+    updateUrl(undefined, undefined, item?.path || '');
+  }
+
   useEffect(() => {
     if (currentPath === '') {
       setAllContents(ROOT_CONTENTS);
@@ -237,17 +247,9 @@ export default function BucketBrowser({ credentials, onLogout }: BucketBrowserPr
     updatePath(path);
   };
 
-  // Handle opening image viewer
-  const openImageViewer = (item: BucketItemWithBlob) => {
-    setSelectedImage(item);
-    updateUrl(undefined, undefined, item.path);
-  };
-
   // Handle closing image viewer
   const closeImageViewer = () => {
-    updateUrl(undefined, undefined, '');
-    setSelectedImage(null);
-    nextSelectedImage = null;
+    setNextImage(null);
   };
 
   // Effect to handle initial image viewing
@@ -263,15 +265,10 @@ export default function BucketBrowser({ credentials, onLogout }: BucketBrowserPr
           handlePageChange(page);
         }
 
-        if (imageToView.blobUrl) {
-          setSelectedImage(imageToView);
-        } else {
-          nextSelectedImage = imageToView;
-        }
+        setNextImage(imageToView);
       }
     } else if (!urlImage) {
-      setSelectedImage(null);
-      nextSelectedImage = null;
+      setNextImage(null);
     }
   }, [searchParams, allContents]);
 
@@ -330,7 +327,7 @@ export default function BucketBrowser({ credentials, onLogout }: BucketBrowserPr
                       src={item.blobUrl}
                       alt={item.name}
                       className="w-full h-48 object-cover cursor-pointer"
-                      onClick={() => openImageViewer(item)}
+                      onClick={() => setNextImage(item)}
                     />
                   ) : (
                     <div className="w-full h-48 bg-gray-600 flex items-center justify-center">
@@ -403,13 +400,12 @@ export default function BucketBrowser({ credentials, onLogout }: BucketBrowserPr
             if (nextIndex < allImages.length) {
               const nextImage = allImages[nextIndex];
               const nextPage = Math.floor(nextIndex / PAGE_SIZE) + 1;
-              setSelectedImage(nextImage);
-              nextSelectedImage = nextImage;
-              updateUrl(undefined, undefined, nextImage.path);
 
               if (nextPage !== currentPage) {
                 await handlePageChange(nextPage);
               }
+
+              setNextImage(nextImage);
             }
           }}
           onPrevious={() => {
@@ -417,13 +413,12 @@ export default function BucketBrowser({ credentials, onLogout }: BucketBrowserPr
             if (prevIndex >= 0) {
               const prevImage = allImages[prevIndex];
               const prevPage = Math.floor(prevIndex / PAGE_SIZE) + 1;
-              setSelectedImage(prevImage);
-              nextSelectedImage = prevImage;
-              updateUrl(undefined, undefined, prevImage.path);
 
               if (prevPage !== currentPage) {
                 handlePageChange(prevPage);
               }
+
+              setNextImage(prevImage);
             }
           }}
           hasNext={viewerImageIndex < allImages.length - 1}
