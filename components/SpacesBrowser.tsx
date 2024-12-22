@@ -9,12 +9,14 @@ export default function SpacesBrowser() {
     accessKeyId: string;
     secretAccessKey: string;
   } | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const savedCredentials = localStorage.getItem('doCredentials');
     if (savedCredentials) {
       setCredentials(JSON.parse(savedCredentials));
     }
+    setLoading(false);
   }, []);
 
   const handleLogin = (accessKeyId: string, secretAccessKey: string) => {
@@ -27,6 +29,14 @@ export default function SpacesBrowser() {
     localStorage.removeItem('doCredentials');
     setCredentials(null);
   };
+
+  if (loading) {
+    return <div className="min-h-screen bg-black">
+      <div className="flex justify-center items-center h-full">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-500"></div>
+      </div>
+    </div>
+  }
 
   return (
     <div className="min-h-screen bg-black">

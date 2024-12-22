@@ -4,17 +4,11 @@ import { useState, useEffect, useMemo } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import VideoPlayer from './VideoPlayer';
 import ImageViewer from './ImageViewer';
+import { fetchFile, listContents } from '../utils/s3';
+import type { BucketItem, BucketItemWithBlob } from '../types';
 
 const IMAGE_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.gif', '.webp'];
 const VIDEO_EXTENSIONS = ['.mp4', '.ts', '.mov'];
-
-interface BucketItem {
-  type: 'directory' | 'image' | 'video' | 'other';
-  name: string;
-  path: string;
-  url?: string;
-  key?: string;
-}
 
 interface BucketBrowserProps {
   credentials: {
@@ -24,20 +18,7 @@ interface BucketBrowserProps {
   onLogout: () => void;
 }
 
-interface BucketItemWithBlob extends BucketItem {
-  blobUrl?: string;
-  index?: number;
-}
-
-interface S3Response {
-  CommonPrefixes: { Prefix: string }[];
-  Contents: { Key: string }[];
-  NextContinuationToken?: string;
-  IsTruncated: boolean;
-}
-
 const PAGE_SIZE = 25;
-const BUCKET_NAME = 'terencefischer';
 const ROOT_CONTENTS: BucketItemWithBlob[] = [
   { type: 'directory', name: 'photos', path: 'photos/' },
   { type: 'directory', name: 'videos', path: 'videos/' },
@@ -64,22 +45,6 @@ export default function BucketBrowser({ credentials, onLogout }: BucketBrowserPr
   const totalPages = Math.ceil(allContents.length / PAGE_SIZE);
   const [generation, setGeneration] = useState(0);
 
-  const fetchFile = async (item: BucketItem) => {
-    try {
-      const response = await fetch(`/api/s3/file?spaceName=${BUCKET_NAME}&accessKeyId=${credentials.accessKeyId}&secretAccessKey=${credentials.secretAccessKey}&key=${item.key}`);
-
-      if (!response.ok) {
-        throw new Error('Failed to fetch file');
-      }
-
-      const blob = await response.blob();
-      return URL.createObjectURL(blob);
-    } catch (error) {
-      console.error('Error fetching file:', error);
-      throw error;
-    }
-  };
-
   const fetchAllImages = async (items: BucketItemWithBlob[], isPreload = false) => {
     if (isPreload) {
       setPreloadingPage(true);
@@ -91,7 +56,7 @@ export default function BucketBrowser({ credentials, onLogout }: BucketBrowserPr
       await Promise.allSettled(
         imageItems.map(async (item, i) => {
           try {
-            const blobUrl = await fetchFile(item);
+            const blobUrl = await fetchFile(item, credentials);
             item.blobUrl = blobUrl;
             if (item.path === nextSelectedImage?.path) {
               setSelectedImage({
@@ -132,44 +97,24 @@ export default function BucketBrowser({ credentials, onLogout }: BucketBrowserPr
       let continuationToken: string | undefined;
 
       do {
-        const response = await fetch('/api/s3', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            spaceName: BUCKET_NAME,
-            accessKeyId: credentials.accessKeyId,
-            secretAccessKey: credentials.secretAccessKey,
-            path: currentPath,
-            continuationToken
-          })
-        });
-
-        if (!response.ok) {
-          throw new Error('Failed to fetch contents');
-        }
-
-        const data: S3Response = await response.json();
-
-        const specialParamPresent = window.location.search.includes('eject-blue-ray');
+        const data = await listContents(currentPath, credentials, continuationToken);
 
         const newItems: BucketItemWithBlob[] = [
           ...(data.CommonPrefixes || []).map((prefix) => ({
             type: 'directory' as const,
-            name: prefix.Prefix.split('/').slice(-2)[0],
-            path: prefix.Prefix
-          })).filter(item => specialParamPresent || item.name === 'photos' || item.name === 'videos' || item.name === 'sony_camera' || item.name === '2021-videos'),
+            name: prefix.Prefix!.split('/').slice(-2)[0],
+            path: prefix.Prefix!
+          })),
           ...(data.Contents || [])
-            .filter((item) => !item.Key.endsWith('/'))
+            .filter((item) => !item.Key!.endsWith('/'))
             .map((item) => {
-              const ext = item.Key.toLowerCase().slice(item.Key.lastIndexOf('.'));
+              const ext = item.Key!.toLowerCase().slice(item.Key!.lastIndexOf('.'));
               const type: BucketItem['type'] = IMAGE_EXTENSIONS.includes(ext) ? 'image' :
                 VIDEO_EXTENSIONS.includes(ext) ? 'video' : 'other';
               return {
                 type,
-                name: item.Key.split('/').pop()!,
-                path: item.Key,
+                name: item.Key!.split('/').pop()!,
+                path: item.Key!,
                 url: `/api/s3/file`,
                 key: item.Key
               };
@@ -401,7 +346,7 @@ export default function BucketBrowser({ credentials, onLogout }: BucketBrowserPr
                   onClick={async () => {
                     try {
                       setLoadingVideo(item.path);
-                      const url = await fetchFile(item);
+                      const url = await fetchFile(item, credentials);
                       setSelectedVideo({ ...item, url });
                     } catch (error) {
                       alert('Failed to load video');
