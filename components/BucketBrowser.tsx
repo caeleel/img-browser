@@ -4,21 +4,22 @@ import { useState, useEffect, useMemo } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import VideoPlayer from './VideoPlayer';
 import ImageViewer from './ImageViewer';
-import { fetchFile, listContents, signedUrl } from '../utils/s3';
-import type { BucketItem, BucketItemWithBlob } from '../types';
+import { fetchFile, listContents, signedUrl } from '@/lib/s3';
+import type { BucketItem, BucketItemWithBlob, S3Credentials } from '@/lib/types';
+import { ItemTile } from './ItemTile';
+import { fetchMetadata } from '@/lib/db';
 
 const IMAGE_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.gif', '.webp'];
 const VIDEO_EXTENSIONS = ['.mp4', '.ts', '.mov'];
 
-const PAGE_SIZE = 25;
+const PAGE_SIZE = 24;
 const ROOT_CONTENTS: BucketItemWithBlob[] = [
   { type: 'directory', name: 'photos', path: 'photos/' },
   { type: 'directory', name: 'videos', path: 'videos/' },
   { type: 'directory', name: 'thumbnails', path: 'thumbnails/' },
 ];
-let nextSelectedImage: BucketItemWithBlob | null = null;
 
-export default function BucketBrowser({ onLogout }: { onLogout: () => void; }) {
+export default function BucketBrowser({ onLogout, credentials }: { onLogout: () => void; credentials: S3Credentials }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [currentPath, setCurrentPath] = useState(searchParams.get('path') || '');
@@ -29,7 +30,6 @@ export default function BucketBrowser({ onLogout }: { onLogout: () => void; }) {
   const [loadingVideo, setLoadingVideo] = useState('');
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(parseInt(searchParams.get('page') || '1'));
-  const [preloadingPage, setPreloadingPage] = useState(false);
 
   const allImages = useMemo(() => allContents.filter(item => item.type === 'image'), [allContents]);
 
@@ -37,23 +37,31 @@ export default function BucketBrowser({ onLogout }: { onLogout: () => void; }) {
   const totalPages = Math.ceil(allContents.length / PAGE_SIZE);
   const [generation, setGeneration] = useState(0);
 
-  const fetchAllImages = async (items: BucketItemWithBlob[], isPreload = false) => {
-    if (isPreload) {
-      setPreloadingPage(true);
-    }
-
+  const fetchAllImages = async (items: BucketItemWithBlob[]) => {
     const imageItems = items.filter(item => item.type === 'image' && !item.blobUrl);
 
     try {
+      const paths = imageItems.filter(item => !item.metadata).map(item => item.path)
+      const imageMeta = await fetchMetadata(paths, credentials);
+
       await Promise.allSettled(
         imageItems.map(async (item, i) => {
           try {
-            const blobUrl = await fetchFile(item);
-            item.blobUrl = blobUrl;
-            if (item.path === nextSelectedImage?.path) {
-              setNextImage({
-                ...item,
-              });
+            let isThumbnail = false;
+            let key = item.path
+            if (key.startsWith('photos/sony_camera/')) {
+              key = key.replace('photos/', 'thumbnails/')
+              isThumbnail = true;
+            }
+
+            const blobUrl = await fetchFile(key)
+            if (isThumbnail) {
+              item.thumbnailBlobUrl = blobUrl
+            } else {
+              item.blobUrl = blobUrl
+            }
+            if (!item.metadata) {
+              item.metadata = imageMeta[item.path]
             }
             setGeneration(generation + 1 + i)
 
@@ -66,10 +74,6 @@ export default function BucketBrowser({ onLogout }: { onLogout: () => void; }) {
       );
     } catch (error) {
       console.error('Error fetching images:', error);
-    } finally {
-      if (isPreload) {
-        setPreloadingPage(false);
-      }
     }
   };
 
@@ -119,7 +123,7 @@ export default function BucketBrowser({ onLogout }: { onLogout: () => void; }) {
       } while (continuationToken);
 
       setAllContents(allItems);
-      updateCurrentPageContents(currentPage, allItems, allItems.length / PAGE_SIZE);
+      updateCurrentPageContents(currentPage, allItems);
     } catch (error) {
       console.error('Error fetching contents:', error);
       alert('Error fetching bucket contents');
@@ -128,20 +132,12 @@ export default function BucketBrowser({ onLogout }: { onLogout: () => void; }) {
     }
   };
 
-  const updateCurrentPageContents = async (page: number, items = allContents, pages = totalPages) => {
+  const updateCurrentPageContents = async (page: number, items = allContents) => {
     const startIndex = (page - 1) * PAGE_SIZE;
     const endIndex = startIndex + PAGE_SIZE;
     const pageItems = items.slice(startIndex, endIndex);
     setContents(pageItems);
     await fetchAllImages(pageItems);
-
-    // After current page is loaded, preload next page
-    if (page >= pages || preloadingPage) return;
-
-    const startIndex2 = page * PAGE_SIZE;
-    const endIndex2 = startIndex2 + PAGE_SIZE;
-    const nextPageItems = items.slice(startIndex2, endIndex2);
-    await fetchAllImages(nextPageItems, true);
   };
 
   const handlePageChange = async (page: number) => {
@@ -153,18 +149,13 @@ export default function BucketBrowser({ onLogout }: { onLogout: () => void; }) {
 
   const setNextImage = (item: BucketItemWithBlob | null) => {
     setSelectedImage(item);
-    if (!item?.blobUrl) {
-      nextSelectedImage = item;
-    } else {
-      nextSelectedImage = null;
-    }
     updateUrl(undefined, undefined, item?.path || '');
   }
 
   useEffect(() => {
     if (currentPath === '') {
       setAllContents(ROOT_CONTENTS);
-      updateCurrentPageContents(1, ROOT_CONTENTS, 1);
+      updateCurrentPageContents(1, ROOT_CONTENTS);
       setLoading(false);
     } else {
       fetchContents();
@@ -230,20 +221,6 @@ export default function BucketBrowser({ onLogout }: { onLogout: () => void; }) {
     updateUrl(newPath, 1);
   };
 
-  // Update directory handlers
-  const handleDirectoryClick = (path: string) => {
-    updatePath(path);
-  };
-
-  const handleBreadcrumbClick = (path: string) => {
-    updatePath(path);
-  };
-
-  // Handle closing image viewer
-  const closeImageViewer = () => {
-    setNextImage(null);
-  };
-
   // Effect to handle initial image viewing
   useEffect(() => {
     const urlImage = searchParams.get('image');
@@ -272,7 +249,7 @@ export default function BucketBrowser({ onLogout }: { onLogout: () => void; }) {
             <div key={crumb.path} className="flex items-center">
               {index > 0 && <span className="text-gray-300 mx-2 text-sm">/</span>}
               <button
-                onClick={() => handleBreadcrumbClick(crumb.path)}
+                onClick={() => updatePath(crumb.path)}
                 className="hover:text-gray-500 hover:underline max-w-[250px] text-left text-ellipsis overflow-hidden text-nowrap"
               >
                 {crumb.name || '/'}
@@ -299,65 +276,24 @@ export default function BucketBrowser({ onLogout }: { onLogout: () => void; }) {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4 flex-grow px-4 pb-4 overflow-y-scroll">
           {contents.map((item) => (
-            <div key={item.path} className="h-48 overflow-hidden bg-neutral-800 shadow-sm">
-              {item.type === 'directory' ? (
-                <button
-                  onClick={() => handleDirectoryClick(item.path)}
-                  className="w-full h-48 flex items-center justify-center hover:bg-gray-500 transition-colors"
-                >
-                  <div className="text-center w-full px-4">
-                    <div className="text-4xl mb-2">📁</div>
-                    <div className="text-sm text-gray-300 break-words">
-                      {item.name}
-                    </div>
-                  </div>
-                </button>
-              ) : item.type === 'image' ? (
-                <div className="relative group">
-                  {item.blobUrl ? (
-                    <img
-                      src={item.blobUrl}
-                      alt={item.name}
-                      className="w-full h-48 object-cover cursor-pointer"
-                      onClick={() => setNextImage(item)}
-                    />
-                  ) : (
-                    <div className="w-full h-48 bg-gray-600 flex items-center justify-center">
-                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-500"></div>
-                    </div>
-                  )}
-                  <div className="absolute bottom-2 left-2 rounded-full bg-black bg-opacity-50 text-white px-4 py-1 text-xs truncate">
-                    {item.name}
-                  </div>
-                </div>
-              ) : item.type === 'video' ? (
-                <button
-                  onClick={async () => {
-                    try {
-                      setLoadingVideo(item.path);
-                      const url = await signedUrl(item);
-                      setSelectedVideo({ ...item, url });
-                    } catch (error) {
-                      console.error('Failed to load video', error);
-                    } finally {
-                      setLoadingVideo('');
-                    }
-                  }}
-                  className="w-full h-48 bg-gray-600 flex items-center justify-center hover:bg-gray-500 transition-colors"
-                >
-                  <div className="flex flex-col items-center">
-                    {loadingVideo === item.path ? (
-                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-500 mb-2"></div>
-                    ) : (
-                      <div className="text-4xl mb-2">🎥</div>
-                    )}
-                    <div className="text-sm text-gray-300 px-2 truncate">
-                      {item.name}
-                    </div>
-                  </div>
-                </button>
-              ) : null}
-            </div>
+            <ItemTile
+              key={item.path}
+              item={item}
+              handleDirectoryClick={updatePath}
+              handleVideoClick={async () => {
+                try {
+                  setLoadingVideo(item.path);
+                  const url = await signedUrl(item);
+                  setSelectedVideo({ ...item, signedUrl: url });
+                } catch (error) {
+                  console.error('Failed to load video', error);
+                } finally {
+                  setLoadingVideo('');
+                }
+              }}
+              handleImageClick={setNextImage}
+              loadingVideo={loadingVideo}
+            />
           ))}
         </div>
       )}
@@ -378,15 +314,30 @@ export default function BucketBrowser({ onLogout }: { onLogout: () => void; }) {
               </button>
             ))}
           </div>
+
+          <div className="rotate-90 hidden">a</div>
+          <div className="rotate-180 hidden">b</div>
+          <div className="-rotate-90 hidden">c</div>
         </div>
       )}
 
       {selectedImage && (
         <ImageViewer
-          image={{ name: selectedImage.name, url: selectedImage.blobUrl }}
           idx={viewerImageIndex}
+          allImages={allImages}
+          credentials={credentials}
           total={allImages.length}
-          onClose={closeImageViewer}
+          onClose={() => setNextImage(null)}
+          onSelectImage={(image) => {
+            const index = allImages.findIndex(img => img.path === image.path);
+            const nextPage = Math.floor(index / PAGE_SIZE) + 1;
+
+            if (nextPage !== currentPage) {
+              handlePageChange(nextPage);
+            }
+
+            setNextImage(image);
+          }}
           onNext={async () => {
             const nextIndex = viewerImageIndex + 1;
             if (nextIndex < allImages.length) {
@@ -420,9 +371,9 @@ export default function BucketBrowser({ onLogout }: { onLogout: () => void; }) {
 
       {selectedVideo && (
         <VideoPlayer
-          video={selectedVideo as { name: string; url: string }}
+          video={selectedVideo as { name: string; signedUrl: string }}
           onClose={() => {
-            URL.revokeObjectURL(selectedVideo.url!);
+            URL.revokeObjectURL(selectedVideo.signedUrl!);
             setSelectedVideo(null);
           }}
         />

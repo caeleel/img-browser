@@ -1,64 +1,83 @@
 'use client';
 
-import { useEffect, useCallback, useState } from 'react';
-import exifr from 'exifr';
+import { useEffect, useCallback, useState, useMemo } from 'react';
+import { BucketItemWithBlob, S3Credentials } from '@/lib/types';
+import { fetchFile } from '@/lib/s3';
+import { fetchMetadata } from '@/lib/db';
 
 interface ImageViewerProps {
-  image: {
-    name: string;
-    url?: string;
-  };
-  idx?: number;
-  total?: number;
-  onClose: () => void;
-  onNext?: () => void;
-  onPrevious?: () => void;
-  hasNext?: boolean;
-  hasPrevious?: boolean;
-}
-
-interface ImageMetadata {
-  Make?: string;
-  Model?: string;
-  DateTimeOriginal?: string;
-  ISO?: number;
-  FNumber?: number;
-  ExposureTime?: number;
-  FocalLength?: number;
-  latitude?: number;
-  longitude?: number;
+  idx?: number
+  total?: number
+  allImages: BucketItemWithBlob[]
+  onClose: () => void
+  onNext?: () => void
+  onPrevious?: () => void
+  hasNext?: boolean
+  hasPrevious?: boolean
+  onSelectImage: (image: BucketItemWithBlob) => void
+  credentials: S3Credentials
 }
 
 export default function ImageViewer({
-  image,
-  idx,
-  total,
+  idx = 0,
+  allImages,
   onClose,
   onNext,
   onPrevious,
   hasNext,
   hasPrevious,
+  onSelectImage,
+  credentials
 }: ImageViewerProps) {
+  const image = allImages[idx];
   const [showInfo, setShowInfo] = useState(false);
-  const [metadata, setMetadata] = useState<ImageMetadata | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [showFilmstrip, setShowFilmstrip] = useState(true);
+  const setGeneration = useState(0)[1];
 
+  // Calculate window of images
+  const WINDOW_SIZE = 9;
+  const windowStart = Math.max(0, Math.min(
+    idx - Math.floor(WINDOW_SIZE / 2),
+    allImages.length - WINDOW_SIZE
+  ));
+  const windowImages = useMemo(() => allImages.slice(windowStart, windowStart + WINDOW_SIZE), [allImages, windowStart]);
+  const total = allImages.length;
+  const metadata = image.metadata;
+  // Fetch any unfetched images in the window
   useEffect(() => {
-    if (image.url) {
-      setLoading(true);
-      exifr.parse(image.url, {
-        pick: [
-          'Make', 'Model', 'DateTimeOriginal', 'ISO',
-          'FNumber', 'ExposureTime', 'FocalLength',
-          'latitude', 'longitude'
-        ]
-      })
-        .then(setMetadata)
-        .catch(console.error)
-        .finally(() => setLoading(false));
-    }
-  }, [image.url]);
+    const pathsWithNoMetadata = windowImages.filter(img => !img.metadata).map(img => img.path);
+    fetchMetadata(pathsWithNoMetadata, credentials).then(metadata => {
+      for (const img of windowImages) {
+        if (img.path in metadata) {
+          img.metadata = metadata[img.path];
+          setGeneration(prev => prev + 1);
+        }
+      }
+    })
 
+    windowImages.forEach(async (img) => {
+      if (!img.thumbnailBlobUrl) {
+        try {
+          const blobUrl = await fetchFile(img.path.replace('photos', 'thumbnails'));
+          img.thumbnailBlobUrl = blobUrl;
+          setGeneration(prev => prev + 1);
+        } catch (error) {
+          console.error('Failed to fetch image:', error);
+        }
+      }
+      if (!img.blobUrl) {
+        try {
+          const blobUrl = await fetchFile(img.path);
+          img.blobUrl = blobUrl;
+          setGeneration(prev => prev + 1);
+        } catch (error) {
+          console.error('Failed to fetch image:', error);
+        }
+      }
+    });
+  }, [windowImages, image.path]);
+
+  // Add 'f' key to toggle filmstrip
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
     switch (e.key) {
       case 'Escape':
@@ -75,6 +94,9 @@ export default function ImageViewer({
       case 'i':
         setShowInfo(prev => !prev);
         break;
+      case 'f':
+        setShowFilmstrip(prev => !prev);
+        break;
     }
   }, [onClose, onNext, onPrevious, hasNext, hasPrevious]);
 
@@ -89,7 +111,7 @@ export default function ImageViewer({
   };
 
   return (
-    <div className="fixed inset-0 bg-black z-50 flex flex-col">
+    <div className="fixed h-screen inset-0 bg-black z-50 flex flex-col">
       {/* Top bar */}
       <div className="bg-black h-9 px-2 flex items-center justify-between text-white">
         <div className="flex items-center space-x-4 h-9">
@@ -138,58 +160,58 @@ export default function ImageViewer({
       </div>
 
       {/* Main content */}
-      <div className="flex-1 flex relative">
+      <div className="flex-1 flex flex-col w-full items-center relative transition-all duration-300">
         {/* Image container */}
-        <div className="flex-1 flex items-center justify-center bg-neutral-950">
-          {image.url ? (
-            <img
-              src={image.url}
-              alt={image.name}
-              className="max-h-[calc(100vh-36px)] max-w-full w-auto h-auto object-contain"
+        <>
+          {image.blobUrl ? (
+            <div
+              className="w-full h-full"
+              style={{
+                backgroundImage: `url(${image.blobUrl})`,
+                backgroundSize: 'contain',
+                backgroundPosition: 'center',
+                backgroundRepeat: 'no-repeat',
+              }}
             />
           ) : (
             <div className="flex-1 flex items-center justify-center">
               <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
             </div>
           )}
-        </div>
+        </>
 
         {/* Info panel */}
         {showInfo && (
           <div className="w-52 bg-black backdrop-blur-lg bg-opacity-70 text-white overflow-y-auto animate-slide-left rounded-lg absolute right-8 top-8 shadow-lg">
             <div className="p-4 text-xs">
-              {loading ? (
-                <div className="flex justify-center py-4">
-                  <div className="animate-spin rounded-full h-8 w-8 border-2 border-gray-800 border-t-transparent" />
-                </div>
-              ) : metadata ? (
+              {metadata ? (
                 <div className="space-y-4">
-                  {(metadata.Make || metadata.Model) && (
+                  {(metadata.camera_make || metadata.camera_model) && (
                     <div>
                       <h4 className="font-semibold mb-1">Camera</h4>
-                      <p className="text-gray-300">{[metadata.Make, metadata.Model].filter(Boolean).join(' ')}</p>
+                      <p className="text-gray-300">{[metadata.camera_make, metadata.camera_model].filter(Boolean).join(' ')}</p>
                     </div>
                   )}
 
-                  {metadata.DateTimeOriginal && (
+                  {metadata.taken_at && (
                     <div>
                       <h4 className="font-semibold mb-1">Date Taken</h4>
                       <p className="text-gray-300">
-                        {new Date(metadata.DateTimeOriginal).toLocaleString()}
+                        {new Date(metadata.taken_at).toLocaleString()}
                       </p>
                     </div>
                   )}
 
-                  {(metadata.ISO || metadata.FNumber || metadata.ExposureTime || metadata.FocalLength) && (
+                  {(metadata.iso || metadata.aperture || metadata.shutter_speed || metadata.focal_length) && (
                     <div>
                       <h4 className="font-semibold mb-1">Camera Settings</h4>
                       <div className="text-gray-300 space-y-1">
-                        {metadata.ISO && <p>ISO: {metadata.ISO}</p>}
-                        {metadata.FNumber && <p>ƒ/{metadata.FNumber}</p>}
-                        {metadata.ExposureTime && (
-                          <p>Shutter: {formatExposure(metadata.ExposureTime)}s</p>
+                        {metadata.iso && <p>ISO: {metadata.iso}</p>}
+                        {metadata.aperture && <p>ƒ/{metadata.aperture}</p>}
+                        {metadata.shutter_speed && (
+                          <p>Shutter: {formatExposure(metadata.shutter_speed)}s</p>
                         )}
-                        {metadata.FocalLength && <p>Focal Length: {metadata.FocalLength}mm</p>}
+                        {metadata.focal_length && <p>Focal Length: {metadata.focal_length}mm</p>}
                       </div>
                     </div>
                   )}
@@ -214,6 +236,59 @@ export default function ImageViewer({
             </div>
           </div>
         )}
+      </div>
+
+      {/* Toggle filmstrip button */}
+      <button
+        onClick={() => setShowFilmstrip(prev => !prev)}
+        className="absolute bottom-4 right-4 p-2 rounded-full bg-black bg-opacity-50 text-white hover:bg-opacity-70 transition-opacity z-50"
+        aria-label="Toggle filmstrip"
+      >
+        <svg className="w-6 h-6" fill="none" stroke="white" viewBox="0 0 32 16">
+          <rect x="4" y="2" width="6" height="12" fill="white" opacity="0.7" />
+          <rect x="12" y="0" width="8" height="16" fill="white" />
+          <rect x="22" y="2" width="6" height="12" fill="white" opacity="0.7" />
+        </svg>
+      </button>
+
+      {/* Filmstrip drawer */}
+      <div
+        className={`bg-black bg-opacity-80 transform transition-all duration-300 ${showFilmstrip ? 'h-32' : 'h-0'
+          }`}
+      >
+        <div className="h-full w-full flex justify-center px-4 py-4 space-x-4 overflow-x-hidden relative">
+          <div className="absolute inset-0 z-10 pointer-events-none" style={{
+            background: "linear-gradient(90deg, rgba(0,0,0,1) 5%, rgba(0,0,0,0) 45%, rgba(0,0,0,0) 55%, rgba(0,0,0,1) 95%)"
+          }} />
+          {windowImages.map((img, i) => {
+            const blobUrl = img.thumbnailBlobUrl || img.blobUrl;
+            let rotation = '';
+            if (img.thumbnailBlobUrl && img.metadata?.orientation) {
+              rotation = img.metadata.orientation === 6 ? 'rotate-90' : img.metadata.orientation === 8 ? '-rotate-90' : '';
+            }
+
+            return (
+              <button
+                key={img.path}
+                onClick={() => onSelectImage(img)}
+                className={`h-24 w-24 flex-shrink-0 box-border transition-none flex justify-center duration-200 bg-neutral-800 ${windowStart + i === idx ? 'ring-2 ring-white' : ''
+                  } ${rotation}`}
+              >
+                {blobUrl ? (
+                  <img
+                    src={blobUrl}
+                    alt={img.name}
+                    className="h-full w-auto object-cover"
+                  />
+                ) : (
+                  <div className="h-full w-24 bg-neutral-800 flex items-center justify-center">
+                    <div className="animate-spin rounded-full h-6 w-6 border-2 border-gray-500 border-t-transparent" />
+                  </div>
+                )}
+              </button>
+            );
+          })}
+        </div>
       </div>
     </div>
   );

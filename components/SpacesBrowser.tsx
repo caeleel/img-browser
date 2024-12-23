@@ -1,11 +1,10 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import Login from '../components/Login';
-import BucketBrowser from '../components/BucketBrowser';
-import { clearS3Cache } from '@/lib/s3';
+import Login from './Login';
+import BucketBrowser from './BucketBrowser';
 
-export default function Home() {
+export default function SpacesBrowser() {
   const [credentials, setCredentials] = useState<{
     accessKeyId: string;
     secretAccessKey: string;
@@ -28,7 +27,6 @@ export default function Home() {
 
   const handleLogout = () => {
     localStorage.removeItem('doCredentials');
-    clearS3Cache();
     setCredentials(null);
   };
 

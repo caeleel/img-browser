@@ -5,7 +5,7 @@ import React, { useState } from 'react';
 interface VideoPlayerProps {
   video: {
     name: string;
-    url: string;
+    signedUrl: string;
   };
   onClose: () => void;
 }
@@ -24,7 +24,7 @@ export default function VideoPlayer({ video, onClose }: VideoPlayerProps) {
           </button>
         </div>
         <video
-          src={video.url}
+          src={video.signedUrl}
           controls
           autoPlay
           className="w-full"

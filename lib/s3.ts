@@ -1,6 +1,6 @@
 import { S3Client, GetObjectCommand, ListObjectsV2Command } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
-import { BucketItem, S3Response } from '../types';
+import { BucketItem, S3Response } from './types';
 
 const BUCKET_NAME = 'terencefischer';
 const REGION = 'sfo3';
@@ -40,12 +40,12 @@ export function clearS3Cache() {
   cachedS3Client = null;
 }
 
-export async function fetchFile(item: BucketItem): Promise<string> {
+export async function fetchFile(key: string): Promise<string> {
   const s3Client = getS3Client();
 
   const command = new GetObjectCommand({
     Bucket: BUCKET_NAME,
-    Key: item.key,
+    Key: key,
   });
 
   const response = await s3Client.send(command);
@@ -92,7 +92,7 @@ export async function signedUrl(item: BucketItem): Promise<string> {
 
   const command = new GetObjectCommand({
     Bucket: BUCKET_NAME,
-    Key: item.key,
+    Key: item.path,
   });
 
   // URL expires in 1 hour
