@@ -254,7 +254,7 @@ export default function BucketBrowser({ onLogout, credentials }: { onLogout: () 
         </div>
         <button
           onClick={onLogout}
-          className="py-0.5 px-4 my-4 bg-black/40 rounded-full hover:bg-black/20 font-semibold ml-4  text-gray-300 text-xs"
+          className="py-1 px-4 my-4 bg-black/40 rounded-full hover:bg-black/20 font-semibold ml-4  text-gray-300 text-xs"
         >
           Logout
         </button>
