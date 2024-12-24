@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useCallback, useState, useMemo } from 'react';
+import { useEffect, useCallback, useState, useRef, useMemo } from 'react';
 import { BucketItemWithBlob, S3Credentials } from '@/lib/types';
 import { fetchFile } from '@/lib/s3';
 import { fetchMetadata } from '@/lib/db';
@@ -20,6 +20,10 @@ interface ImageViewerProps {
   credentials: S3Credentials
 }
 
+function blur(e: KeyboardEvent) {
+  (e.target as HTMLElement)?.blur ? (e.target as HTMLElement).blur() : null;
+}
+
 export default function ImageViewer({
   idx = 0,
   allImages,
@@ -31,10 +35,12 @@ export default function ImageViewer({
   onSelectImage,
   credentials
 }: ImageViewerProps) {
+  const containerRef = useRef<HTMLDivElement>(null);
   const image = allImages[idx];
   const [showInfo, setShowInfo] = useState(false);
   const [showFilmstrip, setShowFilmstrip] = useState(true);
   const [editing, setEditing] = useState<string | null>(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const setGeneration = useState(0)[1];
 
   // Calculate window of images
@@ -125,6 +131,25 @@ export default function ImageViewer({
     fetchCarousel();
   }, [windowImages, image.path]);
 
+  const toggleFullscreen = async () => {
+    if (!document.fullscreenElement) {
+      await containerRef.current?.requestFullscreen();
+      setIsFullscreen(true);
+    } else {
+      await document.exitFullscreen();
+      setIsFullscreen(false);
+    }
+  };
+
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+  }, []);
+
   // Add 'f' key to toggle filmstrip
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
     if (editing) {
@@ -132,21 +157,35 @@ export default function ImageViewer({
     }
     switch (e.key) {
       case 'Escape':
+        if (document.fullscreenElement) {
+          document.exitFullscreen();
+          e.preventDefault();
+          return;
+        }
         onClose();
+        blur(e);
         break;
       case 'ArrowRight':
       case 'ArrowDown':
         if (onNext && hasNext) onNext();
+        blur(e);
         break;
       case 'ArrowLeft':
       case 'ArrowUp':
         if (onPrevious && hasPrevious) onPrevious();
+        blur(e);
         break;
       case 'i':
         setShowInfo(prev => !prev);
+        blur(e);
         break;
       case 'f':
+        toggleFullscreen();
+        blur(e);
+        break;
+      case 'c':
         setShowFilmstrip(prev => !prev);
+        blur(e);
         break;
     }
   }, [onClose, onNext, onPrevious, hasNext, hasPrevious, editing]);
@@ -157,9 +196,22 @@ export default function ImageViewer({
   }, [handleKeyDown]);
 
   return (
-    <div className="fixed h-screen inset-0 bg-black z-50 flex flex-col">
+    <div ref={containerRef} className="fixed h-screen inset-0 bg-black z-50 flex flex-col">
       {/* Top bar */}
-      <div className="bg-black h-9 px-2 flex items-center justify-between text-white">
+      <div className={`bg-black px-1 overflow-hidden duration-300 flex items-center justify-between transition-all text-white ${showFilmstrip ? 'h-9' : 'h-0'}`}>
+        <div className="flex items-center h-20">
+          <button
+            onClick={() => setShowInfo(prev => !prev)}
+            className="p-1 rounded-full hover:bg-white/10"
+            aria-label="Show info"
+          >
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path fillRule="evenodd" clipRule="evenodd" d="M12 6.5C8.96243 6.5 6.5 8.96243 6.5 12C6.5 15.0376 8.96243 17.5 12 17.5C15.0376 17.5 17.5 15.0376 17.5 12C17.5 8.96243 15.0376 6.5 12 6.5ZM5.5 12C5.5 8.41015 8.41015 5.5 12 5.5C15.5899 5.5 18.5 8.41015 18.5 12C18.5 15.5899 15.5899 18.5 12 18.5C8.41015 18.5 5.5 15.5899 5.5 12ZM11.5 15.5V10.5H12.5V15.5H11.5Z" fill="white" />
+              <path d="M12.5 9C12.5 9.27614 12.2761 9.5 12 9.5C11.7239 9.5 11.5 9.27614 11.5 9C11.5 8.72386 11.7239 8.5 12 8.5C12.2761 8.5 12.5 8.72386 12.5 9Z" fill="white" />
+            </svg>
+
+          </button>
+        </div>
         <div className="flex items-center space-x-1 h-9">
           <button
             onClick={onPrevious}
@@ -185,23 +237,27 @@ export default function ImageViewer({
         </div>
         <div className="flex items-center space-x-1">
           <button
-            onClick={() => setShowInfo(prev => !prev)}
+            onClick={toggleFullscreen}
             className="p-1 rounded-full hover:bg-white/10"
-            aria-label="Show info"
+            aria-label={isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}
           >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <circle cx="12" cy="12" r="9" strokeWidth={2} />
-              <rect x="11" y="10" width="2" height="8" fill="currentColor" />
-              <circle cx="12" cy="7" r="1" fill="currentColor" />
-            </svg>
+            {isFullscreen ? (
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M6 6L10.5 10.5M18 18L13.5 13.5M6 18L10.5 13.5M18 6L13.5 10.5M10.5 10.5V8M10.5 10.5H8M13.5 10.5H16M13.5 10.5V8M13.5 13.5V16M13.5 13.5H16M10.5 13.5H8M10.5 13.5V16" stroke="white" />
+              </svg>
+            ) : (
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M6 6L18 18M6 6V10M6 6H10M18 18L17.9704 14M18 18L14 17.9704M6 18L18 6M6 18H10M6 18V14M18 6V10M18 6L14 6.0296" stroke="white" />
+              </svg>
+            )}
           </button>
           <button
             onClick={onClose}
             className="p-1 rounded-full hover:bg-white/10"
             aria-label="Close viewer"
           >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M6 6L18 18M6 18L18 6" stroke="white" />
             </svg>
           </button>
         </div>

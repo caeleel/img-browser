@@ -178,7 +178,7 @@ export function MetadataEditor({ metadata, credentials, editing, setEditing }: {
     return <EditableField field={field} value={format(value || '')} label={label} handleSave={handleSave} />;
   }
 
-  return <div className="w-64 backdrop-blur-lg text-white overflow-y-auto animate-slide-left rounded-b-lg absolute right-4 top-0 shadow-lg" style={{
+  return <div className="w-64 backdrop-blur-lg text-white overflow-y-auto animate-slide-left rounded-b-lg absolute left-1 top-0 shadow-lg" style={{
     background: 'linear-gradient(to bottom, rgba(0, 0, 0, 1) 0%, rgba(0, 0, 0, 0.5) 10%)'
   }}>
     <div className="p-4 text-xs">
