@@ -21,6 +21,7 @@ interface ImageViewerProps {
 }
 
 function blur(e: KeyboardEvent) {
+  // eslint-disable-next-line @typescript-eslint/no-unused-expressions
   (e.target as HTMLElement)?.blur ? (e.target as HTMLElement).blur() : null;
 }
 
@@ -223,7 +224,7 @@ export default function ImageViewer({
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
           </button>
-          <h2 className="text-sm font-medium">{image.name} <span className="text-gray-400">({idx ? idx + 1 : 0} / {total})</span></h2>
+          <h2 className="text-sm font-medium">{image.name} <span className="text-white/70 ml-1">{idx ? idx + 1 : 0} / {total}</span></h2>
           <button
             onClick={onNext}
             disabled={!hasNext}
@@ -285,7 +286,7 @@ export default function ImageViewer({
         </>
 
         {/* Info panel */}
-        {showInfo && <MetadataEditor metadata={metadata} credentials={credentials} editing={editing} setEditing={setEditing} />}
+        {<MetadataEditor metadata={metadata} credentials={credentials} editing={editing} setEditing={setEditing} showFilmstrip={showFilmstrip && showInfo} />}
       </div>
 
       {/* Toggle filmstrip button */}

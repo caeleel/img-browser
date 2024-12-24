@@ -18,11 +18,12 @@ function parseExposure(formatted: string): number | undefined {
 
 const FIELDS = ['camera_make', 'camera_model', 'lens_model', 'taken_at', 'city', 'state', 'country', 'iso', 'aperture', 'shutter_speed', 'focal_length', 'notes'];
 
-export function MetadataEditor({ metadata, credentials, editing, setEditing }: {
+export function MetadataEditor({ metadata, credentials, editing, setEditing, showFilmstrip }: {
   metadata?: ImageMetadata,
   credentials: S3Credentials,
   editing: string | null,
-  setEditing: Dispatch<SetStateAction<string | null>>
+  setEditing: Dispatch<SetStateAction<string | null>>,
+  showFilmstrip: boolean
 }) {
   const EditableField = ({ field, value, label, handleSave, width = 'w-40' }: {
     field: string,
@@ -178,8 +179,9 @@ export function MetadataEditor({ metadata, credentials, editing, setEditing }: {
     return <EditableField field={field} value={format(value || '')} label={label} handleSave={handleSave} />;
   }
 
-  return <div className="w-64 backdrop-blur-lg text-white overflow-y-auto animate-slide-left rounded-b-lg absolute left-1 top-0 shadow-lg" style={{
-    background: 'linear-gradient(to bottom, rgba(0, 0, 0, 1) 0%, rgba(0, 0, 0, 0.5) 10%)'
+  return <div className={`w-64 backdrop-blur-lg text-white overflow-y-auto rounded-b-lg absolute top-0 shadow-lg ${showFilmstrip ? 'left-1' : '-left-64'}`} style={{
+    background: 'linear-gradient(to bottom, rgba(0, 0, 0, 1) 0%, rgba(0, 0, 0, 0.5) 10%)',
+    transition: 'left 0.3s ease-in-out'
   }}>
     <div className="p-4 text-xs">
       {metadata ? (
