@@ -4,27 +4,10 @@ import { useEffect, useCallback, useState, useRef, useMemo } from 'react';
 import { BucketItemWithBlob, S3Credentials } from '@/lib/types';
 import { fetchFile } from '@/lib/s3';
 import { fetchMetadata } from '@/lib/db';
+import { blur } from '@/lib/utils';
 import { MetadataEditor } from './MetadataEditor';
 import exifr from 'exifr';
 import Carousel from './Carousel';
-
-interface ImageViewerProps {
-  idx?: number
-  total?: number
-  allImages: BucketItemWithBlob[]
-  onClose: () => void
-  onNext?: () => void
-  onPrevious?: () => void
-  hasNext?: boolean
-  hasPrevious?: boolean
-  onSelectImage: (image: BucketItemWithBlob) => void
-  credentials: S3Credentials
-}
-
-function blur(e: KeyboardEvent) {
-  // eslint-disable-next-line @typescript-eslint/no-unused-expressions
-  (e.target as HTMLElement)?.blur ? (e.target as HTMLElement).blur() : null;
-}
 
 export default function ImageViewer({
   idx = 0,
@@ -36,7 +19,18 @@ export default function ImageViewer({
   hasPrevious,
   onSelectImage,
   credentials
-}: ImageViewerProps) {
+}: {
+  idx?: number
+  total?: number
+  allImages: BucketItemWithBlob[]
+  onClose: () => void
+  onNext?: () => void
+  onPrevious?: () => void
+  hasNext?: boolean
+  hasPrevious?: boolean
+  onSelectImage: (image: BucketItemWithBlob) => void
+  credentials: S3Credentials
+}) {
   const containerRef = useRef<HTMLDivElement>(null);
   const image = allImages[idx];
   const [showInfo, setShowInfo] = useState(false);
