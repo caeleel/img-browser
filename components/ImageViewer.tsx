@@ -265,25 +265,15 @@ export default function ImageViewer({
       </div>
 
       {/* Main content */}
-      <div className="flex-1 flex flex-col w-full items-center relative transition-all duration-300">
+      <div className="flex-1 flex flex-col w-full items-center justify-center relative transition-all duration-300 overflow-auto">
         {/* Image container */}
-        <>
-          {image.blobUrl ? (
-            <div
-              className="w-full h-full"
-              style={{
-                backgroundImage: `url(${image.blobUrl})`,
-                backgroundSize: 'contain',
-                backgroundPosition: 'center',
-                backgroundRepeat: 'no-repeat',
-              }}
-            />
-          ) : (
-            <div className="flex-1 flex items-center justify-center">
-              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-            </div>
-          )}
-        </>
+        {image.blobUrl ? (
+          <img src={image.blobUrl} alt={image.name} className="w-full h-full object-contain" />
+        ) : (
+          <div className="flex-1 flex items-center justify-center">
+            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+          </div>
+        )}
 
         {/* Info panel */}
         {<MetadataEditor metadata={metadata} credentials={credentials} editing={editing} setEditing={setEditing} showFilmstrip={showFilmstrip && showInfo} />}
