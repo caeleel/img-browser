@@ -4,6 +4,8 @@ import { useEffect, useCallback, useState, useMemo } from 'react';
 import { BucketItemWithBlob, S3Credentials } from '@/lib/types';
 import { fetchFile } from '@/lib/s3';
 import { fetchMetadata } from '@/lib/db';
+import { MetadataEditor } from './MetadataEditor';
+import exifr from 'exifr';
 
 interface ImageViewerProps {
   idx?: number
@@ -32,53 +34,102 @@ export default function ImageViewer({
   const image = allImages[idx];
   const [showInfo, setShowInfo] = useState(false);
   const [showFilmstrip, setShowFilmstrip] = useState(true);
+  const [editing, setEditing] = useState<string | null>(null);
   const setGeneration = useState(0)[1];
 
   // Calculate window of images
   const WINDOW_SIZE = 9;
-  const windowStart = Math.max(0, Math.min(
-    idx - Math.floor(WINDOW_SIZE / 2),
-    allImages.length - WINDOW_SIZE
-  ));
-  const windowImages = useMemo(() => allImages.slice(windowStart, windowStart + WINDOW_SIZE), [allImages, windowStart]);
+  const windowStart = idx - Math.floor(WINDOW_SIZE / 2)
+  const windowImages = useMemo(() => {
+    const images: (BucketItemWithBlob | null)[] = []
+    for (let i = windowStart; i < windowStart + WINDOW_SIZE; i++) {
+      images.push(allImages[i] || null)
+    }
+    return images
+  }, [allImages, windowStart]);
+  const validImages = useMemo(() => windowImages.filter(img => img !== null), [windowImages]);
   const total = allImages.length;
   const metadata = image.metadata;
   // Fetch any unfetched images in the window
   useEffect(() => {
-    const pathsWithNoMetadata = windowImages.filter(img => !img.metadata).map(img => img.path);
-    fetchMetadata(pathsWithNoMetadata, credentials).then(metadata => {
-      for (const img of windowImages) {
-        if (img.path in metadata) {
-          img.metadata = metadata[img.path];
-          setGeneration(prev => prev + 1);
-        }
+    const fetchCarousel = async () => {
+      const hasDbEntry = image.path.startsWith('photos/sony_camera/')
+      if (hasDbEntry) {
+        const pathsWithNoMetadata = validImages.filter(img => !img.metadata).map(img => img.path);
+        fetchMetadata(pathsWithNoMetadata, credentials).then(metadata => {
+          for (const img of validImages) {
+            if (img.path in metadata) {
+              img.metadata = metadata[img.path];
+              setGeneration(prev => prev + 1);
+            }
+          }
+        })
       }
-    })
 
-    windowImages.forEach(async (img) => {
-      if (!img.thumbnailBlobUrl) {
+      if (!image.blobUrl) {
         try {
-          const blobUrl = await fetchFile(img.path.replace('photos', 'thumbnails'));
-          img.thumbnailBlobUrl = blobUrl;
+          const blobUrl = await fetchFile(image.path);
+          image.blobUrl = blobUrl;
           setGeneration(prev => prev + 1);
         } catch (error) {
           console.error('Failed to fetch image:', error);
         }
       }
-      if (!img.blobUrl) {
-        try {
-          const blobUrl = await fetchFile(img.path);
-          img.blobUrl = blobUrl;
-          setGeneration(prev => prev + 1);
-        } catch (error) {
-          console.error('Failed to fetch image:', error);
+
+      validImages.forEach(async (img) => {
+        if (!img.thumbnailBlobUrl && hasDbEntry) {
+          try {
+            const blobUrl = await fetchFile(img.path.replace('photos', 'thumbnails'));
+            img.thumbnailBlobUrl = blobUrl;
+            setGeneration(prev => prev + 1);
+          } catch (error) {
+            console.error('Failed to fetch image:', error);
+          }
         }
-      }
-    });
+        if (!img.blobUrl) {
+          try {
+            const blobUrl = await fetchFile(img.path);
+            img.blobUrl = blobUrl;
+            if (!hasDbEntry && !img.metadata) {
+              // use exif data to populate metadata
+              const exifData = await exifr.parse(blobUrl);
+              img.metadata = {
+                id: image.path,
+                path: image.path,
+                name: image.name,
+                latitude: exifData.gpsLatitude,
+                longitude: exifData.gpsLongitude,
+                city: exifData.city,
+                state: exifData.state,
+                country: exifData.country,
+                orientation: exifData.orientation,
+                lens_model: exifData.lensModel,
+                camera_make: exifData.make,
+                camera_model: exifData.model,
+                shutter_speed: exifData.exposureTime,
+                aperture: exifData.apertureValue,
+                focal_length: exifData.focalLength,
+                iso: exifData.iso,
+                taken_at: exifData.dateTimeOriginal,
+                notes: '',
+              }
+            }
+
+            setGeneration(prev => prev + 1);
+          } catch (error) {
+            console.error('Failed to fetch image:', error);
+          }
+        }
+      });
+    }
+    fetchCarousel();
   }, [windowImages, image.path]);
 
   // Add 'f' key to toggle filmstrip
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
+    if (editing) {
+      return
+    }
     switch (e.key) {
       case 'Escape':
         onClose();
@@ -98,23 +149,18 @@ export default function ImageViewer({
         setShowFilmstrip(prev => !prev);
         break;
     }
-  }, [onClose, onNext, onPrevious, hasNext, hasPrevious]);
+  }, [onClose, onNext, onPrevious, hasNext, hasPrevious, editing]);
 
   useEffect(() => {
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [handleKeyDown]);
 
-  const formatExposure = (exposure?: number) => {
-    if (!exposure) return null;
-    return exposure < 1 ? `1/${Math.round(1 / exposure)}` : exposure.toString();
-  };
-
   return (
     <div className="fixed h-screen inset-0 bg-black z-50 flex flex-col">
       {/* Top bar */}
       <div className="bg-black h-9 px-2 flex items-center justify-between text-white">
-        <div className="flex items-center space-x-4 h-9">
+        <div className="flex items-center space-x-1 h-9">
           <button
             onClick={onPrevious}
             disabled={!hasPrevious}
@@ -137,14 +183,16 @@ export default function ImageViewer({
             </svg>
           </button>
         </div>
-        <div className="flex items-center space-x-4">
+        <div className="flex items-center space-x-1">
           <button
             onClick={() => setShowInfo(prev => !prev)}
             className="p-1 rounded-full hover:bg-white/10"
             aria-label="Show info"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              <circle cx="12" cy="12" r="9" strokeWidth={2} />
+              <rect x="11" y="10" width="2" height="8" fill="currentColor" />
+              <circle cx="12" cy="7" r="1" fill="currentColor" />
             </svg>
           </button>
           <button
@@ -181,61 +229,7 @@ export default function ImageViewer({
         </>
 
         {/* Info panel */}
-        {showInfo && (
-          <div className="w-52 bg-black backdrop-blur-lg bg-opacity-70 text-white overflow-y-auto animate-slide-left rounded-lg absolute right-8 top-8 shadow-lg">
-            <div className="p-4 text-xs">
-              {metadata ? (
-                <div className="space-y-4">
-                  {(metadata.camera_make || metadata.camera_model) && (
-                    <div>
-                      <h4 className="font-semibold mb-1">Camera</h4>
-                      <p className="text-gray-300">{[metadata.camera_make, metadata.camera_model].filter(Boolean).join(' ')}</p>
-                    </div>
-                  )}
-
-                  {metadata.taken_at && (
-                    <div>
-                      <h4 className="font-semibold mb-1">Date Taken</h4>
-                      <p className="text-gray-300">
-                        {new Date(metadata.taken_at).toLocaleString()}
-                      </p>
-                    </div>
-                  )}
-
-                  {(metadata.iso || metadata.aperture || metadata.shutter_speed || metadata.focal_length) && (
-                    <div>
-                      <h4 className="font-semibold mb-1">Camera Settings</h4>
-                      <div className="text-gray-300 space-y-1">
-                        {metadata.iso && <p>ISO: {metadata.iso}</p>}
-                        {metadata.aperture && <p>ƒ/{metadata.aperture}</p>}
-                        {metadata.shutter_speed && (
-                          <p>Shutter: {formatExposure(metadata.shutter_speed)}s</p>
-                        )}
-                        {metadata.focal_length && <p>Focal Length: {metadata.focal_length}mm</p>}
-                      </div>
-                    </div>
-                  )}
-
-                  {(metadata.latitude && metadata.longitude) && (
-                    <div>
-                      <h4 className="font-semiboldmb-1">Location</h4>
-                      <a
-                        href={`https://maps.google.com/?q=${metadata.latitude},${metadata.longitude}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-blue-500 hover:underline"
-                      >
-                        View on Google Maps
-                      </a>
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <p className="text-gray-300">No metadata available</p>
-              )}
-            </div>
-          </div>
-        )}
+        {showInfo && <MetadataEditor metadata={metadata} credentials={credentials} editing={editing} setEditing={setEditing} />}
       </div>
 
       {/* Toggle filmstrip button */}
@@ -258,20 +252,20 @@ export default function ImageViewer({
       >
         <div className="h-full w-full flex justify-center px-4 py-4 space-x-4 overflow-x-hidden relative">
           <div className="absolute inset-0 z-10 pointer-events-none" style={{
-            background: "linear-gradient(90deg, rgba(0,0,0,1) 5%, rgba(0,0,0,0) 45%, rgba(0,0,0,0) 55%, rgba(0,0,0,1) 95%)"
+            background: "linear-gradient(90deg, rgba(0,0,0,1) 8%, rgba(0,0,0,0) 35%, rgba(0,0,0,0) 65%, rgba(0,0,0,1) 92%)"
           }} />
           {windowImages.map((img, i) => {
-            const blobUrl = img.thumbnailBlobUrl || img.blobUrl;
+            const blobUrl = img?.thumbnailBlobUrl || img?.blobUrl;
             let rotation = '';
-            if (img.thumbnailBlobUrl && img.metadata?.orientation) {
+            if (img?.thumbnailBlobUrl && img?.metadata?.orientation) {
               rotation = img.metadata.orientation === 6 ? 'rotate-90' : img.metadata.orientation === 8 ? '-rotate-90' : '';
             }
 
             return (
               <button
-                key={img.path}
-                onClick={() => onSelectImage(img)}
-                className={`h-24 w-24 flex-shrink-0 box-border transition-none flex justify-center duration-200 bg-neutral-800 ${windowStart + i === idx ? 'ring-2 ring-white' : ''
+                key={img?.path || i}
+                onClick={() => img ? onSelectImage(img) : null}
+                className={`h-24 w-24 flex-shrink-0 box-border bg-white/5 transition-none flex justify-center duration-200  ${windowStart + i === idx ? 'ring-2 ring-white' : ''
                   } ${rotation}`}
               >
                 {blobUrl ? (
@@ -281,8 +275,8 @@ export default function ImageViewer({
                     className="h-full w-auto object-cover"
                   />
                 ) : (
-                  <div className="h-full w-24 bg-neutral-800 flex items-center justify-center">
-                    <div className="animate-spin rounded-full h-6 w-6 border-2 border-gray-500 border-t-transparent" />
+                  <div className="h-full w-24 bg-black flex items-center justify-center">
+                    {img && <div className="animate-spin rounded-full h-6 w-6 border-2 border-gray-500 border-t-transparent" />}
                   </div>
                 )}
               </button>

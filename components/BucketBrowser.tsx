@@ -4,20 +4,15 @@ import { useState, useEffect, useMemo } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import VideoPlayer from './VideoPlayer';
 import ImageViewer from './ImageViewer';
-import { fetchFile, listContents, signedUrl } from '@/lib/s3';
+import PageSwitcher from './PageSwitcher';
+import { fetchFile, listContents, ROOT_CONTENTS, signedUrl } from '@/lib/s3';
 import type { BucketItem, BucketItemWithBlob, S3Credentials } from '@/lib/types';
 import { ItemTile } from './ItemTile';
 import { fetchMetadata } from '@/lib/db';
-
 const IMAGE_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.gif', '.webp'];
 const VIDEO_EXTENSIONS = ['.mp4', '.ts', '.mov'];
 
 const PAGE_SIZE = 24;
-const ROOT_CONTENTS: BucketItemWithBlob[] = [
-  { type: 'directory', name: 'photos', path: 'photos/' },
-  { type: 'directory', name: 'videos', path: 'videos/' },
-  { type: 'directory', name: 'thumbnails', path: 'thumbnails/' },
-];
 
 export default function BucketBrowser({ onLogout, credentials }: { onLogout: () => void; credentials: S3Credentials }) {
   const router = useRouter();
@@ -243,14 +238,14 @@ export default function BucketBrowser({ onLogout, credentials }: { onLogout: () 
 
   return (
     <div className="w-screen h-screen flex flex-col">
-      <div className="flex justify-between items-center px-4">
-        <div className="flex items-center space-x-2 flex-wrap text-gray-300 text-sm">
+      <div className="absolute top-0 left-0 right-0 flex justify-between items-center px-4 z-10 backdrop-blur-lg bg-white/70">
+        <div className="flex items-center flex-wrap text-gray-300 text-sm">
           {breadcrumbs.map((crumb, index) => (
             <div key={crumb.path} className="flex items-center">
-              {index > 0 && <span className="text-gray-300 mx-2 text-sm">/</span>}
+              {index > 0 && <span className="text-neutral-900 mx-3 text-sm">/</span>}
               <button
                 onClick={() => updatePath(crumb.path)}
-                className="hover:text-gray-500 hover:underline max-w-[250px] text-left text-ellipsis overflow-hidden text-nowrap"
+                className="hover:text-black text-neutral-900 hover:underline max-w-[250px] text-left text-ellipsis overflow-hidden text-nowrap"
               >
                 {crumb.name || '/'}
               </button>
@@ -259,7 +254,7 @@ export default function BucketBrowser({ onLogout, credentials }: { onLogout: () 
         </div>
         <button
           onClick={onLogout}
-          className="py-2 rounded hover:underline hover:text-gray-500 ml-4 shrink-0 text-gray-300 text-sm"
+          className="py-0.5 px-4 my-4 bg-black/40 rounded-full hover:bg-black/20 font-semibold ml-4  text-gray-300 text-xs"
         >
           Logout
         </button>
@@ -270,54 +265,54 @@ export default function BucketBrowser({ onLogout, credentials }: { onLogout: () 
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-500 mx-auto"></div>
         </div>
       ) : contents.length === 0 ? (
-        <div className="text-center py-8 text-gray-600 flex-grow">
-          This directory is empty
+        <div className="flex flex-col flex-grow justify-center items-center">
+          <div className="text-center text-gray-600">
+            This directory is empty
+          </div>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4 flex-grow px-4 pb-4 overflow-y-scroll">
-          {contents.map((item) => (
-            <ItemTile
-              key={item.path}
-              item={item}
-              handleDirectoryClick={updatePath}
-              handleVideoClick={async () => {
-                try {
-                  setLoadingVideo(item.path);
-                  const url = await signedUrl(item);
-                  setSelectedVideo({ ...item, signedUrl: url });
-                } catch (error) {
-                  console.error('Failed to load video', error);
-                } finally {
-                  setLoadingVideo('');
-                }
-              }}
-              handleImageClick={setNextImage}
-              loadingVideo={loadingVideo}
+        <div className="flex flex-col flex-grow overflow-y-scroll pt-1">
+          <div className="grid auto-rows-min grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 px-4 pb-4 pt-16">
+            {contents.map((item) => (
+              <ItemTile
+                key={item.path}
+                item={item}
+                handleDirectoryClick={updatePath}
+                handleVideoClick={async () => {
+                  try {
+                    setLoadingVideo(item.path);
+                    const url = await signedUrl(item);
+                    setSelectedVideo({ ...item, signedUrl: url });
+                  } catch (error) {
+                    console.error('Failed to load video', error);
+                  } finally {
+                    setLoadingVideo('');
+                  }
+                }}
+                handleImageClick={setNextImage}
+                loadingVideo={loadingVideo}
+              />
+            ))}
+          </div>
+
+          <div className="py-2 px4">
+            <PageSwitcher
+              currentPage={currentPage}
+              totalPages={totalPages}
+              handlePageChange={() => { }}
             />
-          ))}
+          </div>
         </div>
       )}
 
       {totalPages > 1 && (
-        <div className="bg-neutral-900 flex justify-center items-center flex-wrap py-2 px-4 shadow">
-          <div className="flex flex-wrap gap-2 justify-center max-w-full">
-            {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-              <button
-                key={page}
-                onClick={() => handlePageChange(page)}
-                className={`text-xs ${currentPage === page
-                  ? 'font-bold text-white'
-                  : 'text-gray-400 hover:underline hover:text-white'
-                  }`}
-              >
-                {page}
-              </button>
-            ))}
-          </div>
-
-          <div className="rotate-90 hidden">a</div>
-          <div className="rotate-180 hidden">b</div>
-          <div className="-rotate-90 hidden">c</div>
+        <div className="fixed bottom-0 left-0 right-0 py-2 px-4 backdrop-blur-lg bg-white/50">
+          <PageSwitcher
+            currentPage={currentPage}
+            totalPages={totalPages}
+            handlePageChange={handlePageChange}
+            visible
+          />
         </div>
       )}
 
@@ -345,7 +340,7 @@ export default function BucketBrowser({ onLogout, credentials }: { onLogout: () 
               const nextPage = Math.floor(nextIndex / PAGE_SIZE) + 1;
 
               if (nextPage !== currentPage) {
-                await handlePageChange(nextPage);
+                handlePageChange(nextPage);
               }
 
               setNextImage(nextImage);

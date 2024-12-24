@@ -47,6 +47,10 @@ export default function Login({ onLogin }: LoginProps) {
             Connect
           </button>
         </form>
+
+        <div className="rotate-90 hidden">a</div>
+        <div className="rotate-180 hidden">b</div>
+        <div className="-rotate-90 hidden">c</div>
       </div>
     </div>
   );

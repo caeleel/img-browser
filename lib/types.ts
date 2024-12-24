@@ -1,4 +1,5 @@
 export interface ImageMetadata {
+  id: string;
   path: string;
   name: string;
   taken_at: string | null;
@@ -15,6 +16,7 @@ export interface ImageMetadata {
   shutter_speed: number | null;
   focal_length: number | null;
   orientation: number;
+  notes: string | null;
 }
 
 export interface BucketItem {

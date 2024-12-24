@@ -59,4 +59,18 @@ export async function POST(request: Request) {
     console.error('Failed to insert metadata:', error);
     return NextResponse.json({ error: 'Failed to insert metadata' }, { status: 500 });
   }
-} 
+}
+
+export async function PUT(request: Request) {
+  const { ids, metadata, credentials }: { ids: string[], metadata: Partial<ImageMetadata>, credentials: S3Credentials } = await request.json();
+
+  if (!credentialsValid(credentials)) {
+    return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
+  }
+
+  const entries = Object.entries(metadata);
+  const { rowCount } = await sql.query(`
+    UPDATE image_metadata SET ${entries.map((key, i) => `${key[0]} = $${i + 1 + ids.length}`).join(', ')} WHERE id IN (${ids.map((_, i) => `$${i + 1}`).join(', ')})
+  `, [...ids, ...entries.map((value) => value[1])]);
+  return NextResponse.json({ count: rowCount });
+}
