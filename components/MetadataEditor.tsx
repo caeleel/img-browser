@@ -179,7 +179,8 @@ export function MetadataEditor({ metadata, credentials, editing, setEditing, sho
     return <EditableField field={field} value={format(value || '')} label={label} handleSave={handleSave} />;
   }
 
-  return <div className={`w-64 backdrop-blur-lg text-white overflow-y-auto rounded-b-lg absolute top-0 shadow-lg ${showFilmstrip ? 'left-1' : '-left-64'}`} style={{
+  console.log(metadata?.latitude, metadata?.longitude);
+  return <div className={`z-10 w-64 backdrop-blur-lg text-white overflow-y-auto rounded-b-lg absolute top-8 shadow-lg ${showFilmstrip ? 'left-1' : '-left-64'}`} style={{
     background: 'linear-gradient(to bottom, rgba(0, 0, 0, 1) 0%, rgba(0, 0, 0, 0.5) 10%)',
     transition: 'left 0.3s ease-in-out'
   }}>
@@ -204,9 +205,23 @@ export function MetadataEditor({ metadata, credentials, editing, setEditing, sho
                 value={metadata.taken_at}
                 format={(v: string) => new Date(v).toLocaleString()}
               />
-              <StringEditableField field="city" value={metadata.city} label="City" />
-              <StringEditableField field="state" value={metadata.state} label="State" />
-              <StringEditableField field="country" value={metadata.country} label="Country" />
+              {metadata.latitude && metadata.longitude && (
+                <div>
+                  <div className="rounded overflow-hidden mb-2">
+                    <iframe
+                      width="100%"
+                      height="150"
+                      style={{ border: 0 }}
+                      loading="lazy"
+                      referrerPolicy="no-referrer-when-downgrade"
+                      src={`https://maps.google.com/maps?q=${metadata.latitude},${metadata.longitude}&t=&z=15&ie=UTF8&iwloc=&output=embed`}
+                    />
+                  </div>
+                  <div className="text-xs text-gray-400">
+                    Coordinates: {metadata.latitude.toFixed(6)}, {metadata.longitude.toFixed(6)}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 

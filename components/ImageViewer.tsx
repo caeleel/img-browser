@@ -383,15 +383,6 @@ export default function ImageViewer({
             <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
           </div>
         )}
-
-        {/* Info panel */}
-        {<MetadataEditor
-          metadata={metadata}
-          credentials={credentials}
-          editing={editing}
-          setEditing={setEditing}
-          showFilmstrip={showFilmstrip && showInfo}
-        />}
       </div>
 
       {/* Toggle filmstrip button */}
@@ -406,6 +397,15 @@ export default function ImageViewer({
           <rect x="22" y="2" width="6" height="12" fill="white" opacity="0.7" />
         </svg>
       </button>
+
+      {/* Info panel */}
+      {<MetadataEditor
+        metadata={metadata}
+        credentials={credentials}
+        editing={editing}
+        setEditing={setEditing}
+        showFilmstrip={showFilmstrip && showInfo}
+      />}
 
       {/* Filmstrip drawer */}
       <Carousel images={windowImages} shown={showFilmstrip} onSelectImage={onSelectImage} />
