@@ -1,6 +1,7 @@
 import { Dispatch, SetStateAction } from 'react';
 import { S3Credentials, ImageMetadata } from "@/lib/types";
 import { updateMetadata } from "@/lib/db";
+import { ColorHistogram } from './ColorHistogram';
 
 function formatExposure(exposure?: number) {
   if (!exposure) return '';
@@ -18,12 +19,13 @@ function parseExposure(formatted: string): number | undefined {
 
 const FIELDS = ['camera_make', 'camera_model', 'lens_model', 'taken_at', 'city', 'state', 'country', 'iso', 'aperture', 'shutter_speed', 'focal_length', 'notes'];
 
-export function MetadataEditor({ metadata, credentials, editing, setEditing, showFilmstrip }: {
+export function MetadataEditor({ metadata, credentials, editing, setEditing, showFilmstrip, imageUrl }: {
   metadata?: ImageMetadata,
   credentials: S3Credentials,
   editing: string | null,
   setEditing: Dispatch<SetStateAction<string | null>>,
-  showFilmstrip: boolean
+  showFilmstrip: boolean,
+  imageUrl?: string
 }) {
   const EditableField = ({ field, value, label, handleSave, width = 'w-40' }: {
     field: string,
@@ -225,6 +227,10 @@ export function MetadataEditor({ metadata, credentials, editing, setEditing, sho
             <h4 className="font-semibold mb-1">Notes</h4>
             <TextAreaEditableField field="notes" value={metadata?.notes || ''} />
           </div>
+
+          {imageUrl && (
+            <ColorHistogram imageUrl={imageUrl} />
+          )}
         </div>
       ) : (
         <p className="text-gray-300">No metadata available</p>

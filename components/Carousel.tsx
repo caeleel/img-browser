@@ -1,4 +1,5 @@
 import { BucketItemWithBlob } from "@/lib/types";
+import { getCssOrientation } from "@/lib/utils";
 
 export default function Carousel({ images, shown, onSelectImage }: {
   images: (BucketItemWithBlob | null)[],
@@ -18,7 +19,7 @@ export default function Carousel({ images, shown, onSelectImage }: {
           const blobUrl = img?.thumbnailBlobUrl || img?.blobUrl;
           let rotation = '';
           if (img?.thumbnailBlobUrl && img?.metadata?.orientation) {
-            rotation = img.metadata.orientation === 6 ? 'rotate-90' : img.metadata.orientation === 8 ? '-rotate-90' : '';
+            rotation = getCssOrientation(img.metadata.orientation);
           }
 
           return (

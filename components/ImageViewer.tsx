@@ -371,6 +371,7 @@ export default function ImageViewer({
             />
             <Minimap
               thumbnailUrl={image.thumbnailBlobUrl || image.blobUrl}
+              orientation={image.metadata?.orientation}
               scale={scale}
               position={position}
               imageRef={imageRef}
@@ -384,7 +385,14 @@ export default function ImageViewer({
         )}
 
         {/* Info panel */}
-        {<MetadataEditor metadata={metadata} credentials={credentials} editing={editing} setEditing={setEditing} showFilmstrip={showFilmstrip && showInfo} />}
+        {<MetadataEditor
+          metadata={metadata}
+          credentials={credentials}
+          editing={editing}
+          setEditing={setEditing}
+          showFilmstrip={showFilmstrip && showInfo}
+          imageUrl={image.blobUrl}
+        />}
       </div>
 
       {/* Toggle filmstrip button */}

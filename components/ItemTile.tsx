@@ -1,4 +1,5 @@
 import { BucketItemWithBlob } from "@/lib/types";
+import { getCssOrientation } from "@/lib/utils";
 
 function DirectoryTile({ item, handleDirectoryClick }: {
   item: BucketItemWithBlob,
@@ -29,7 +30,7 @@ function ImageTile({ item, handleImageClick }: {
 
   let rotation = ''
   if (item.thumbnailBlobUrl && metadata?.orientation) {
-    rotation = metadata.orientation === 6 ? 'rotate-90' : metadata.orientation === 8 ? '-rotate-90' : ''
+    rotation = getCssOrientation(metadata.orientation)
   }
 
   return <div className="relative group bg-white/5">
