@@ -167,7 +167,7 @@ export default function BucketBrowser({ onLogout, credentials }: { onLogout: () 
       setCurrentPath(urlPath || '');
     }
     if (urlPage !== currentPage) {
-      setCurrentPage(urlPage);
+      handlePageChange(urlPage);
     }
   }, [searchParams]);
 
