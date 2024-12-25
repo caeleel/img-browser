@@ -49,7 +49,21 @@ export async function POST(request: Request) {
       SELECT path, name, taken_at, latitude, longitude, city, state, country,
         camera_make, camera_model, lens_model, aperture, iso, 
         shutter_speed, focal_length, orientation FROM json_populate_recordset(null::image_metadata, $1)
-      ON CONFLICT (path) DO NOTHING
+      ON CONFLICT (path) DO UPDATE SET
+        taken_at = EXCLUDED.taken_at,
+        latitude = EXCLUDED.latitude,
+        longitude = EXCLUDED.longitude,
+        city = EXCLUDED.city,
+        state = EXCLUDED.state,
+        country = EXCLUDED.country,
+        camera_make = EXCLUDED.camera_make,
+        camera_model = EXCLUDED.camera_model,
+        lens_model = EXCLUDED.lens_model,
+        aperture = EXCLUDED.aperture,
+        iso = EXCLUDED.iso,
+        shutter_speed = EXCLUDED.shutter_speed,
+        focal_length = EXCLUDED.focal_length,
+        orientation = EXCLUDED.orientation
     `,
       [JSON.stringify(metadata)]
     );

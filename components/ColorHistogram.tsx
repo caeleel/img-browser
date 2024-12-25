@@ -82,7 +82,7 @@ export function ColorHistogram({ imageUrl }: ColorHistogramProps) {
 
         // Draw histogram line
         histogram[channel as keyof HistogramData].forEach((value, i) => {
-          ctx.lineTo(i * (width / 255), height - (value * height));
+          ctx.rect(i * (width / 255), height - (value * height), width / 255, (value * height))
         });
 
         ctx.lineTo(width, height);
@@ -99,12 +99,11 @@ export function ColorHistogram({ imageUrl }: ColorHistogramProps) {
 
   return (
     <div className="mt-4">
-      <h4 className="font-semibold mb-1">Color Distribution</h4>
       <canvas
         ref={canvasRef}
         width={256}
         height={100}
-        className="w-full bg-black/30 rounded"
+        className="w-full bg-white/10"
       />
     </div>
   );

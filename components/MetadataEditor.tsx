@@ -1,7 +1,6 @@
 import { Dispatch, SetStateAction } from 'react';
 import { S3Credentials, ImageMetadata } from "@/lib/types";
 import { updateMetadata } from "@/lib/db";
-import { ColorHistogram } from './ColorHistogram';
 
 function formatExposure(exposure?: number) {
   if (!exposure) return '';
@@ -58,13 +57,13 @@ export function MetadataEditor({ metadata, credentials, editing, setEditing, sho
                 setEditing(nextField);
               }
             }}
-            className={`bg-black bg-opacity-50 px-2 rounded ${width} h-6`}
+            className={`bg-black bg-opacity-50 px-2 rounded ${width} min-h-6`}
             autoFocus
           />
         ) : (
           <div
             onClick={() => setEditing(field)}
-            className={`cursor-pointer hover:text-white bg-white/5 hover:bg-white/10 ${width} rounded px-2 py-1 h-6 text-xs`}
+            className={`cursor-pointer hover:text-white bg-white/5 hover:bg-white/10 ${width} rounded px-2 py-1 min-h-6 text-xs`}
           >
             {value}
           </div>
@@ -227,10 +226,6 @@ export function MetadataEditor({ metadata, credentials, editing, setEditing, sho
             <h4 className="font-semibold mb-1">Notes</h4>
             <TextAreaEditableField field="notes" value={metadata?.notes || ''} />
           </div>
-
-          {imageUrl && (
-            <ColorHistogram imageUrl={imageUrl} />
-          )}
         </div>
       ) : (
         <p className="text-gray-300">No metadata available</p>

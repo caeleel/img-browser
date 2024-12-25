@@ -1,4 +1,4 @@
-import { S3Client, GetObjectCommand, ListObjectsV2Command } from '@aws-sdk/client-s3';
+import { S3Client, GetObjectCommand, ListObjectsV2Command, PutObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { BucketItem, BucketItemWithBlob, S3Response } from './types';
 
@@ -103,4 +103,42 @@ export async function signedUrl(item: BucketItem): Promise<string> {
 
   // URL expires in 1 hour
   return getSignedUrl(s3Client, command, { expiresIn: 3600 });
-} 
+}
+
+export async function getSignedPutUrl(key: string, contentType: string): Promise<string> {
+  const s3Client = getS3Client();
+
+  const command = new PutObjectCommand({
+    Bucket: BUCKET_NAME,
+    Key: key,
+    ContentType: contentType,
+  });
+
+  return getSignedUrl(s3Client, command, { expiresIn: 3600 });
+}
+
+export async function uploadFile(key: string, file: Blob): Promise<void> {
+  try {
+    // Get signed URL for upload
+    const signedUrl = await getSignedPutUrl(key, file.type);
+
+    const body = await file.arrayBuffer();
+    console.log(file.type, file.size, body.byteLength);
+    // Upload using signed URL
+    const response = await fetch(signedUrl, {
+      method: 'PUT',
+      body: body,
+      headers: {
+        'Content-Type': file.type,
+        'Content-Length': body.byteLength.toString(),
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`Upload failed with status: ${response.status}`);
+    }
+  } catch (error) {
+    console.error('Error uploading file:', error);
+    throw new Error(`Failed to upload ${key}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
+}

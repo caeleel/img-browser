@@ -44,7 +44,7 @@ export default function BucketBrowser({ onLogout, credentials }: { onLogout: () 
           try {
             let isThumbnail = false;
             let key = item.path
-            if (key.startsWith('photos/sony_camera/')) {
+            if (key.startsWith('photos/')) {
               key = key.replace('photos/', 'thumbnails/')
               isThumbnail = true;
             }

@@ -64,7 +64,7 @@ export default function ImageViewer({
   // Fetch any unfetched images in the window
   useEffect(() => {
     const fetchCarousel = async () => {
-      const hasDbEntry = image.path.startsWith('photos/sony_camera/')
+      const hasDbEntry = image.path.startsWith('photos/')
       if (hasDbEntry) {
         const pathsWithNoMetadata = validImages.filter(img => !img.metadata).map(img => img.path);
         fetchMetadata(pathsWithNoMetadata, credentials).then(metadata => {
@@ -279,7 +279,7 @@ export default function ImageViewer({
         container.removeEventListener('wheel', handleWheel);
       }
     };
-  }, [imageRef, idx]);
+  }, [imageRef, idx, editing]);
 
   return (
     <div ref={containerRef} className="fixed h-screen inset-0 bg-black z-50 flex flex-col">
