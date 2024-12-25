@@ -62,7 +62,7 @@ export function MetadataEditor({ metadata, credentials, editing, setEditing, sho
         ) : (
           <div
             onClick={() => setEditing(field)}
-            className={`cursor-pointer hover:text-white bg-white/5 hover:bg-white/10 ${width} rounded px-2 py-1 min-h-6 text-xs`}
+            className={`cursor-pointer hover:text-white bg-white/10 hover:bg-white/10 ${width} rounded px-2 py-1 min-h-6 text-xs`}
           >
             {value}
           </div>
@@ -111,7 +111,7 @@ export function MetadataEditor({ metadata, credentials, editing, setEditing, sho
       autoFocus
     /> : <div
       onClick={() => setEditing(field)}
-      className="w-full h-24 text-gray-300 text-xs bg-white/5 rounded px-2 py-1 hover:bg-white/10 whitespace-pre-wrap"
+      className="w-full h-24 text-gray-300 text-xs bg-white/10 rounded px-2 py-1 hover:bg-white/10 whitespace-pre-wrap"
     >
       {value}
     </div>
@@ -207,7 +207,7 @@ export function MetadataEditor({ metadata, credentials, editing, setEditing, sho
               />
               {metadata.latitude && metadata.longitude && (
                 <div>
-                  <div className="rounded overflow-hidden mb-2">
+                  <div className="rounded overflow-hidden my-2">
                     <iframe
                       width="100%"
                       height="150"
