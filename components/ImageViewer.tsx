@@ -18,8 +18,6 @@ export default function ImageViewer({
   onClose,
   onNext,
   onPrevious,
-  hasNext,
-  hasPrevious,
   onSelectImage,
   credentials
 }: {
@@ -28,8 +26,6 @@ export default function ImageViewer({
   onClose: () => void
   onNext?: () => void
   onPrevious?: () => void
-  hasNext?: boolean
-  hasPrevious?: boolean
   onSelectImage: (image: BucketItemWithBlob) => void
   credentials: S3Credentials
 }) {
@@ -157,6 +153,9 @@ export default function ImageViewer({
     document.addEventListener('fullscreenchange', handleFullscreenChange);
     return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
   }, []);
+
+  const hasNext = idx < allImages.length - 1;
+  const hasPrevious = idx > 0;
 
   // Add 'f' key to toggle filmstrip
   const handleKeyDown = useCallback((e: KeyboardEvent) => {

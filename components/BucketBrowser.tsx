@@ -332,7 +332,7 @@ export default function BucketBrowser({ onLogout, credentials }: { onLogout: () 
             setNextImage(index);
           }}
           onNext={async () => {
-            if (!viewerImageIndex) return;
+            if (viewerImageIndex === null) return;
 
             const nextIndex = viewerImageIndex + 1;
             if (nextIndex < allImages.length) {
@@ -346,7 +346,7 @@ export default function BucketBrowser({ onLogout, credentials }: { onLogout: () 
             }
           }}
           onPrevious={() => {
-            if (!viewerImageIndex) return;
+            if (viewerImageIndex === null) return;
 
             const prevIndex = viewerImageIndex - 1;
             if (prevIndex >= 0) {
@@ -359,8 +359,6 @@ export default function BucketBrowser({ onLogout, credentials }: { onLogout: () 
               setNextImage(prevIndex);
             }
           }}
-          hasNext={viewerImageIndex !== null && viewerImageIndex < allImages.length - 1}
-          hasPrevious={viewerImageIndex !== null && viewerImageIndex > 0}
         />
       )}
 
