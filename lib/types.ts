@@ -43,4 +43,9 @@ export interface S3Response {
 export interface S3Credentials {
   accessKeyId: string;
   secretAccessKey: string;
-} 
+}
+
+export interface Vector2 {
+  x: number;
+  y: number;
+}

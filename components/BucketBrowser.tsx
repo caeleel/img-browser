@@ -21,14 +21,14 @@ export default function BucketBrowser({ onLogout, credentials }: { onLogout: () 
   const [allContents, setAllContents] = useState<BucketItemWithBlob[]>([]);
   const [contents, setContents] = useState<BucketItemWithBlob[]>([]);
   const [selectedVideo, setSelectedVideo] = useState<BucketItem | null>(null);
-  const [selectedImage, setSelectedImage] = useState<BucketItemWithBlob | null>(null);
   const [loadingVideo, setLoadingVideo] = useState('');
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(parseInt(searchParams.get('page') || '1'));
 
   const allImages = useMemo(() => allContents.filter(item => item.type === 'image'), [allContents]);
 
-  const viewerImageIndex = useMemo(() => allImages.findIndex(img => img.path === selectedImage?.path), [allImages, selectedImage]);
+  const [viewerImageIndex, setViewerImageIndex] = useState<number | null>(null);
+  const selectedImage = viewerImageIndex !== null ? allImages[viewerImageIndex] : null;
   const totalPages = Math.ceil(allContents.length / PAGE_SIZE);
   const [generation, setGeneration] = useState(0);
 
@@ -142,9 +142,9 @@ export default function BucketBrowser({ onLogout, credentials }: { onLogout: () 
     await updateCurrentPageContents(page);
   };
 
-  const setNextImage = (item: BucketItemWithBlob | null) => {
-    setSelectedImage(item);
-    updateUrl(undefined, undefined, item?.path || '');
+  const setNextImage = (index: number | null) => {
+    setViewerImageIndex(index);
+    updateUrl(undefined, undefined, index !== null ? allImages[index].path : '');
   }
 
   useEffect(() => {
@@ -220,19 +220,18 @@ export default function BucketBrowser({ onLogout, credentials }: { onLogout: () 
   useEffect(() => {
     const urlImage = searchParams.get('image');
     if (urlImage && allImages.length > 0) {
-      const imageToView = allImages.find(img => img.path === urlImage);
-      if (imageToView) {
-        const index = allImages.findIndex(img => img.path === urlImage);
+      const index = allImages.findIndex(img => img.path === urlImage);
+      if (index !== -1) {
         const page = Math.floor(index / PAGE_SIZE) + 1;
 
         if (page !== currentPage) {
           handlePageChange(page);
         }
 
-        setSelectedImage(imageToView);
+        setViewerImageIndex(index);
       }
     } else if (!urlImage) {
-      setSelectedImage(null);
+      setViewerImageIndex(null);
     }
   }, [searchParams, allContents]);
 
@@ -289,7 +288,7 @@ export default function BucketBrowser({ onLogout, credentials }: { onLogout: () 
                     setLoadingVideo('');
                   }
                 }}
-                handleImageClick={setNextImage}
+                handleImageClick={(item) => setNextImage(allImages.findIndex(img => img.path === item.path))}
                 loadingVideo={loadingVideo}
               />
             ))}
@@ -318,10 +317,9 @@ export default function BucketBrowser({ onLogout, credentials }: { onLogout: () 
 
       {selectedImage && (
         <ImageViewer
-          idx={viewerImageIndex}
+          idx={viewerImageIndex!}
           allImages={allImages}
           credentials={credentials}
-          total={allImages.length}
           onClose={() => setNextImage(null)}
           onSelectImage={(image) => {
             const index = allImages.findIndex(img => img.path === image.path);
@@ -331,36 +329,38 @@ export default function BucketBrowser({ onLogout, credentials }: { onLogout: () 
               handlePageChange(nextPage);
             }
 
-            setNextImage(image);
+            setNextImage(index);
           }}
           onNext={async () => {
+            if (!viewerImageIndex) return;
+
             const nextIndex = viewerImageIndex + 1;
             if (nextIndex < allImages.length) {
-              const nextImage = allImages[nextIndex];
               const nextPage = Math.floor(nextIndex / PAGE_SIZE) + 1;
 
               if (nextPage !== currentPage) {
                 handlePageChange(nextPage);
               }
 
-              setNextImage(nextImage);
+              setNextImage(nextIndex);
             }
           }}
           onPrevious={() => {
+            if (!viewerImageIndex) return;
+
             const prevIndex = viewerImageIndex - 1;
             if (prevIndex >= 0) {
-              const prevImage = allImages[prevIndex];
               const prevPage = Math.floor(prevIndex / PAGE_SIZE) + 1;
 
               if (prevPage !== currentPage) {
                 handlePageChange(prevPage);
               }
 
-              setNextImage(prevImage);
+              setNextImage(prevIndex);
             }
           }}
-          hasNext={viewerImageIndex < allImages.length - 1}
-          hasPrevious={viewerImageIndex > 0}
+          hasNext={viewerImageIndex !== null && viewerImageIndex < allImages.length - 1}
+          hasPrevious={viewerImageIndex !== null && viewerImageIndex > 0}
         />
       )}
 

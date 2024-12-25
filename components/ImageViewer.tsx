@@ -1,13 +1,16 @@
 'use client';
 
 import { useEffect, useCallback, useState, useRef, useMemo } from 'react';
-import { BucketItemWithBlob, S3Credentials } from '@/lib/types';
+import { BucketItemWithBlob, S3Credentials, Vector2 } from '@/lib/types';
 import { fetchFile } from '@/lib/s3';
 import { fetchMetadata } from '@/lib/db';
 import { blur } from '@/lib/utils';
 import { MetadataEditor } from './MetadataEditor';
 import exifr from 'exifr';
 import Carousel from './Carousel';
+
+let lastScale = 1;
+let lastPosition = { x: 0, y: 0 };
 
 export default function ImageViewer({
   idx = 0,
@@ -20,8 +23,7 @@ export default function ImageViewer({
   onSelectImage,
   credentials
 }: {
-  idx?: number
-  total?: number
+  idx: number
   allImages: BucketItemWithBlob[]
   onClose: () => void
   onNext?: () => void
@@ -32,12 +34,22 @@ export default function ImageViewer({
   credentials: S3Credentials
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const imageRef = useRef<HTMLImageElement>(null);
   const image = allImages[idx];
   const [showInfo, setShowInfo] = useState(false);
   const [showFilmstrip, setShowFilmstrip] = useState(true);
   const [editing, setEditing] = useState<string | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [scale, setScale] = useState(1);
+  const [position, setPosition] = useState({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const setGeneration = useState(0)[1];
+
+  const setPos = (pos: Vector2) => {
+    lastPosition = pos;
+    setPosition(pos);
+  }
 
   // Calculate window of images
   const WINDOW_SIZE = 9;
@@ -186,10 +198,88 @@ export default function ImageViewer({
     }
   }, [onClose, onNext, onPrevious, hasNext, hasPrevious, editing]);
 
+  const getMaxDrift = () => {
+    if (!imageRef.current) {
+      return { x: 0, y: 0 };
+    }
+    const { width, height } = imageRef.current;
+    return { x: (lastScale - 1) * width / 2, y: (lastScale - 1) * height / 2 }
+  }
+
+  const handleWheel = useCallback((e: WheelEvent) => {
+    if (!imageRef.current) {
+      return
+    }
+
+    e.preventDefault();
+    const deltaY = -e.deltaY;
+    const deltaX = -e.deltaX;
+
+    if (e.ctrlKey || e.metaKey) {
+      e.preventDefault();
+      // Calculate zoom
+      const newScale = Math.max(1, Math.min(5, lastScale * (1 + deltaY * 0.01)));
+      const { width, height } = imageRef.current;
+      const prevCenter = { x: width / 2 + lastPosition.x, y: height / 2 + lastPosition.y }
+      const targetDelta = { x: e.x - prevCenter.x, y: e.y - prevCenter.y }
+      const scaledTargetDelta = { x: targetDelta.x * newScale / lastScale, y: targetDelta.y * newScale / lastScale }
+      lastPosition = { x: e.x - scaledTargetDelta.x - width / 2, y: e.y - scaledTargetDelta.y - height / 2 }
+      lastScale = newScale;
+      setScale(newScale);
+    } else {
+      lastPosition.x += deltaX;
+      lastPosition.y += deltaY;
+    }
+
+    const maxDrift = getMaxDrift();
+    setPos({
+      x: Math.max(-maxDrift.x, Math.min(maxDrift.x, lastPosition.x)),
+      y: Math.max(-maxDrift.y, Math.min(maxDrift.y, lastPosition.y)),
+    });
+  }, []);
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (scale > 1) {
+      setIsDragging(true);
+      setDragStart({ x: e.clientX - position.x, y: e.clientY - position.y });
+    }
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (isDragging && scale > 1) {
+      const newX = e.clientX - dragStart.x;
+      const newY = e.clientY - dragStart.y;
+
+      // Calculate bounds
+      const maxDrift = getMaxDrift();
+
+      // Constrain position within bounds
+      setPos({
+        x: Math.max(-maxDrift.x, Math.min(maxDrift.x, newX)),
+        y: Math.max(-maxDrift.y, Math.min(maxDrift.y, newY)),
+      });
+    }
+  };
+
+  const handleMouseUp = () => {
+    setIsDragging(false);
+  };
+
   useEffect(() => {
+    lastScale = scale;
+    const container = containerRef.current;
+    if (container) {
+      container.addEventListener('wheel', handleWheel, { passive: false });
+    }
+
     document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [handleKeyDown]);
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+      if (container) {
+        container.removeEventListener('wheel', handleWheel);
+      }
+    };
+  }, [imageRef, idx]);
 
   return (
     <div ref={containerRef} className="fixed h-screen inset-0 bg-black z-50 flex flex-col">
@@ -260,10 +350,24 @@ export default function ImageViewer({
       </div>
 
       {/* Main content */}
-      <div className="flex-1 flex flex-col w-full items-center justify-center relative transition-all duration-300 overflow-auto">
+      <div className="flex-1 flex flex-col w-full items-center justify-center relative transition-all duration-300 overflow-hidden">
         {/* Image container */}
         {image.blobUrl ? (
-          <img src={image.blobUrl} alt={image.name} className="w-full h-full object-contain" />
+          <img
+            ref={imageRef}
+            src={image.blobUrl}
+            alt={image.name}
+            className={`w-full h-full object-contain transition-none cursor-${scale > 1 ? 'grab' : 'default'} ${isDragging ? 'cursor-grabbing' : ''}`}
+            style={{
+              transform: `translate(${position.x}px, ${position.y}px) scale(${scale})`,
+              transformOrigin: 'center',
+            }}
+            onMouseDown={handleMouseDown}
+            onMouseMove={handleMouseMove}
+            onMouseUp={handleMouseUp}
+            onMouseLeave={handleMouseUp}
+            draggable={false}
+          />
         ) : (
           <div className="flex-1 flex items-center justify-center">
             <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
