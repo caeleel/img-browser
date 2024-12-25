@@ -391,7 +391,6 @@ export default function ImageViewer({
           editing={editing}
           setEditing={setEditing}
           showFilmstrip={showFilmstrip && showInfo}
-          imageUrl={image.blobUrl}
         />}
       </div>
 

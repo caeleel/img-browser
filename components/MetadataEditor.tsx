@@ -18,13 +18,12 @@ function parseExposure(formatted: string): number | undefined {
 
 const FIELDS = ['camera_make', 'camera_model', 'lens_model', 'taken_at', 'city', 'state', 'country', 'iso', 'aperture', 'shutter_speed', 'focal_length', 'notes'];
 
-export function MetadataEditor({ metadata, credentials, editing, setEditing, showFilmstrip, imageUrl }: {
+export function MetadataEditor({ metadata, credentials, editing, setEditing, showFilmstrip }: {
   metadata?: ImageMetadata,
   credentials: S3Credentials,
   editing: string | null,
   setEditing: Dispatch<SetStateAction<string | null>>,
   showFilmstrip: boolean,
-  imageUrl?: string
 }) {
   const EditableField = ({ field, value, label, handleSave, width = 'w-40' }: {
     field: string,

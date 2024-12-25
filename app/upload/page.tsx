@@ -14,6 +14,7 @@ let heic2any: (options: {
 }) => Promise<Blob | Blob[]>;
 
 if (typeof window !== 'undefined') {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   heic2any = require('heic2any');
 }
 
