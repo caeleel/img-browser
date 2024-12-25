@@ -5,7 +5,13 @@ import { uploadFile } from '@/lib/s3';
 import exifr from 'exifr';
 
 const BATCH_SIZE = 25;
-let heic2any: any;
+let heic2any: (options: {
+  blob: Blob;
+  multiple?: true;
+  toType?: string;
+  quality?: number;
+  gifInterval?: number;
+}) => Promise<Blob | Blob[]>;
 
 if (typeof window !== 'undefined') {
   heic2any = require('heic2any');
