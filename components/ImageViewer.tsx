@@ -8,6 +8,7 @@ import { blur } from '@/lib/utils';
 import { MetadataEditor } from './MetadataEditor';
 import exifr from 'exifr';
 import Carousel from './Carousel';
+import { Minimap } from './Minimap';
 
 let lastScale = 1;
 let lastPosition = { x: 0, y: 0 };
@@ -352,21 +353,30 @@ export default function ImageViewer({
       <div className="flex-1 flex flex-col w-full items-center justify-center relative transition-all duration-300 overflow-hidden">
         {/* Image container */}
         {image.blobUrl ? (
-          <img
-            ref={imageRef}
-            src={image.blobUrl}
-            alt={image.name}
-            className={`w-full h-full object-contain transition-none cursor-${scale > 1 ? 'grab' : 'default'} ${isDragging ? 'cursor-grabbing' : ''}`}
-            style={{
-              transform: `translate(${position.x}px, ${position.y}px) scale(${scale})`,
-              transformOrigin: 'center',
-            }}
-            onMouseDown={handleMouseDown}
-            onMouseMove={handleMouseMove}
-            onMouseUp={handleMouseUp}
-            onMouseLeave={handleMouseUp}
-            draggable={false}
-          />
+          <>
+            <img
+              ref={imageRef}
+              src={image.blobUrl}
+              alt={image.name}
+              className={`w-full h-full object-contain transition-none cursor-${scale > 1 ? 'grab' : 'default'} ${isDragging ? 'cursor-grabbing' : ''}`}
+              style={{
+                transform: `translate(${position.x}px, ${position.y}px) scale(${scale})`,
+                transformOrigin: 'center',
+              }}
+              onMouseDown={handleMouseDown}
+              onMouseMove={handleMouseMove}
+              onMouseUp={handleMouseUp}
+              onMouseLeave={handleMouseUp}
+              draggable={false}
+            />
+            <Minimap
+              thumbnailUrl={image.thumbnailBlobUrl || image.blobUrl}
+              scale={scale}
+              position={position}
+              imageRef={imageRef}
+              onPositionChange={setPos}
+            />
+          </>
         ) : (
           <div className="flex-1 flex items-center justify-center">
             <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
