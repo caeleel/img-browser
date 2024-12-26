@@ -253,7 +253,7 @@ export default function BucketBrowser({ onLogout, credentials }: { onLogout: () 
         </div>
         <button
           onClick={onLogout}
-          className="py-1 px-4 my-4 bg-black/40 rounded-full hover:bg-black/20 font-semibold ml-4  text-gray-300 text-xs"
+          className="py-1 px-4 my-3 bg-black/40 rounded-full hover:bg-black/20 font-semibold ml-4  text-gray-300 text-xs"
         >
           Logout
         </button>
@@ -270,7 +270,7 @@ export default function BucketBrowser({ onLogout, credentials }: { onLogout: () 
           </div>
         </div>
       ) : (
-        <div className="overflow-y-scroll mt-2 pt-16 pb-16 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4 px-4">
+        <div className="overflow-y-scroll pt-16 pb-16 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4 px-4">
           {contents.map((item) => (
             <ItemTile
               key={item.path}
