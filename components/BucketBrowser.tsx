@@ -270,37 +270,27 @@ export default function BucketBrowser({ onLogout, credentials }: { onLogout: () 
           </div>
         </div>
       ) : (
-        <div className="flex flex-col flex-grow overflow-y-scroll pt-1">
-          <div className="grid auto-rows-min grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4 px-4 pb-4 pt-16">
-            {contents.map((item) => (
-              <ItemTile
-                key={item.path}
-                item={item}
-                handleDirectoryClick={updatePath}
-                handleVideoClick={async () => {
-                  try {
-                    setLoadingVideo(item.path);
-                    const url = await signedUrl(item);
-                    setSelectedVideo({ ...item, signedUrl: url });
-                  } catch (error) {
-                    console.error('Failed to load video', error);
-                  } finally {
-                    setLoadingVideo('');
-                  }
-                }}
-                handleImageClick={(item) => setNextImage(allImages.findIndex(img => img.path === item.path))}
-                loadingVideo={loadingVideo}
-              />
-            ))}
-          </div>
-
-          <div className="py-2 px4">
-            <PageSwitcher
-              currentPage={currentPage}
-              totalPages={totalPages}
-              handlePageChange={() => { }}
+        <div className="overflow-y-scroll mt-2 pt-16 pb-16 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4 px-4">
+          {contents.map((item) => (
+            <ItemTile
+              key={item.path}
+              item={item}
+              handleDirectoryClick={updatePath}
+              handleVideoClick={async () => {
+                try {
+                  setLoadingVideo(item.path);
+                  const url = await signedUrl(item);
+                  setSelectedVideo({ ...item, signedUrl: url });
+                } catch (error) {
+                  console.error('Failed to load video', error);
+                } finally {
+                  setLoadingVideo('');
+                }
+              }}
+              handleImageClick={(item) => setNextImage(allImages.findIndex(img => img.path === item.path))}
+              loadingVideo={loadingVideo}
             />
-          </div>
+          ))}
         </div>
       )}
 
