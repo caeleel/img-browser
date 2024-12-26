@@ -1,0 +1,13 @@
+torch
+torchvision
+Pillow
+fastapi
+uvicorn
+numpy
+pydantic
+python-multipart
+ftfy
+regex
+tqdm
+typing-extensions
+git+https://github.com/openai/CLIP.git 
