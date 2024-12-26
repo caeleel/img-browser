@@ -33,7 +33,7 @@ export default function PageSwitcher({ currentPage, visible, totalPages, handleP
         <path d="M15 18L9 12L15 6" stroke="black" />
       </svg>
     </div>
-    <div className="flex flex-grow gap-2 pt-1.5 pb-16 overflow-x-scroll px-16" style={{
+    <div className="flex flex-grow gap-2 pt-1.5 pb-16 overflow-x-scroll overflow-y-hidden px-16" style={{
       maskImage: 'linear-gradient(to right, transparent, black 10%, black 90%, transparent)',
       WebkitMaskImage: 'linear-gradient(to right, transparent, black 10%, black 90%, transparent)',
       maskType: 'alpha',
