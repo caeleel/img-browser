@@ -10,7 +10,11 @@ export default function PageSwitcher({ currentPage, visible, totalPages, handleP
 
   useLayoutEffect(() => {
     if (currentPageRef.current) {
-      currentPageRef.current.scrollIntoView({ behavior: 'auto', block: 'center', inline: 'center' });
+      // check to see if the ref is already in the viewport
+      const rect = currentPageRef.current.getBoundingClientRect();
+      if (rect.left < 80 || rect.right > window.innerWidth - 80) {
+        currentPageRef.current.scrollIntoView({ behavior: 'auto', block: 'center', inline: 'center' });
+      }
     }
   }, [currentPage]);
 
