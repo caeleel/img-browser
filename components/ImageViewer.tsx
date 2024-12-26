@@ -43,9 +43,21 @@ export default function ImageViewer({
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const setGeneration = useState(0)[1];
 
+  const getMaxDrift = () => {
+    if (!imageRef.current) {
+      return { x: 0, y: 0 };
+    }
+    const { width, height } = imageRef.current;
+    return { x: (lastScale - 1) * width / 2, y: (lastScale - 1) * height / 2 }
+  }
+
   const setPos = (pos: Vector2) => {
-    lastPosition = pos;
-    setPosition(pos);
+    const maxDrift = getMaxDrift();
+    lastPosition = {
+      x: Math.max(-maxDrift.x, Math.min(maxDrift.x, pos.x)),
+      y: Math.max(-maxDrift.y, Math.min(maxDrift.y, pos.y)),
+    };
+    setPosition(lastPosition);
   }
 
   // Calculate window of images
@@ -198,14 +210,6 @@ export default function ImageViewer({
     }
   }, [onClose, onNext, onPrevious, hasNext, hasPrevious, editing]);
 
-  const getMaxDrift = () => {
-    if (!imageRef.current) {
-      return { x: 0, y: 0 };
-    }
-    const { width, height } = imageRef.current;
-    return { x: (lastScale - 1) * width / 2, y: (lastScale - 1) * height / 2 }
-  }
-
   const handleWheel = useCallback((e: WheelEvent) => {
     if (!imageRef.current) {
       return
@@ -218,12 +222,14 @@ export default function ImageViewer({
     if (e.ctrlKey || e.metaKey) {
       e.preventDefault();
       // Calculate zoom
+      const { x: ex, y: dy } = e;
+      const ey = dy - 36;
       const newScale = Math.max(1, Math.min(5, lastScale * (1 + deltaY * 0.01)));
       const { width, height } = imageRef.current;
       const prevCenter = { x: width / 2 + lastPosition.x, y: height / 2 + lastPosition.y }
-      const targetDelta = { x: e.x - prevCenter.x, y: e.y - prevCenter.y }
+      const targetDelta = { x: ex - prevCenter.x, y: ey - prevCenter.y }
       const scaledTargetDelta = { x: targetDelta.x * newScale / lastScale, y: targetDelta.y * newScale / lastScale }
-      lastPosition = { x: e.x - scaledTargetDelta.x - width / 2, y: e.y - scaledTargetDelta.y - height / 2 }
+      lastPosition = { x: ex - scaledTargetDelta.x - width / 2, y: ey - scaledTargetDelta.y - height / 2 }
       lastScale = newScale;
       setScale(newScale);
     } else {
@@ -231,11 +237,7 @@ export default function ImageViewer({
       lastPosition.y += deltaY;
     }
 
-    const maxDrift = getMaxDrift();
-    setPos({
-      x: Math.max(-maxDrift.x, Math.min(maxDrift.x, lastPosition.x)),
-      y: Math.max(-maxDrift.y, Math.min(maxDrift.y, lastPosition.y)),
-    });
+    setPos(lastPosition);
   }, []);
 
   const handleMouseDown = (e: React.MouseEvent) => {
@@ -250,14 +252,8 @@ export default function ImageViewer({
       const newX = e.clientX - dragStart.x;
       const newY = e.clientY - dragStart.y;
 
-      // Calculate bounds
-      const maxDrift = getMaxDrift();
-
       // Constrain position within bounds
-      setPos({
-        x: Math.max(-maxDrift.x, Math.min(maxDrift.x, newX)),
-        y: Math.max(-maxDrift.y, Math.min(maxDrift.y, newY)),
-      });
+      setPos({ x: newX, y: newY });
     }
   };
 

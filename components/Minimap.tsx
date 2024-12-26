@@ -48,8 +48,8 @@ export function Minimap({ thumbnailUrl, scale, position, imageRef, onPositionCha
     const minimapY = (e.clientY - rect.top) / rect.height;
 
     // Calculate the new center position
-    const newX = (minimapX - 0.5) * imageWidth * (scale - 1);
-    const newY = (minimapY - 0.5) * imageHeight * (scale - 1);
+    const newX = (minimapX - 0.5) * imageWidth * scale;
+    const newY = (minimapY - 0.5) * imageHeight * scale;
 
     onPositionChange({
       x: -newX,
