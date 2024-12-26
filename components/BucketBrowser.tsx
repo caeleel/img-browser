@@ -271,7 +271,7 @@ export default function BucketBrowser({ onLogout, credentials }: { onLogout: () 
         </div>
       ) : (
         <div className="flex flex-col flex-grow overflow-y-scroll pt-1">
-          <div className="grid auto-rows-min grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 px-4 pb-4 pt-16">
+          <div className="grid auto-rows-min grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4 px-4 pb-4 pt-16">
             {contents.map((item) => (
               <ItemTile
                 key={item.path}

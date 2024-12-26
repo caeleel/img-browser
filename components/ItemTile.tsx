@@ -23,7 +23,7 @@ function ImageTile({ item, handleImageClick }: {
   const { metadata } = item
 
   if (!blobUrl) {
-    return <div className="w-full h-48 flex items-center justify-center">
+    return <div className="w-full h-48 xl:h-36 flex items-center justify-center">
       <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-500"></div>
     </div>
   }
@@ -34,11 +34,11 @@ function ImageTile({ item, handleImageClick }: {
   }
 
   return <div className="relative group bg-white/5">
-    <div className="w-full h-48 overflow-hidden">
+    <div className="w-full h-48 xl:h-36 overflow-hidden">
       <img
         src={blobUrl}
         alt={item.name}
-        className={`w-full h-48 object-cover cursor-pointer ${rotation}`}
+        className={`w-full h-48 xl:h-36 object-cover cursor-pointer ${rotation}`}
         onClick={() => handleImageClick(item)}
       />
       <div className="absolute bottom-2 left-2 rounded-full px-2 py-1 bg-black bg-opacity-50 group-hover:opacity-100 transition-opacity duration-300">
@@ -58,7 +58,7 @@ function VideoTile({ item, loadingVideo, handleVideoClick }: {
   handleVideoClick: (item: BucketItemWithBlob) => void
 }) {
   if (loadingVideo === item.path) {
-    return <div className="w-full h-48 flex items-center justify-center">
+    return <div className="w-full h-48 xl:h-36 flex items-center justify-center">
       <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-500"></div>
     </div>
   }
