@@ -98,7 +98,7 @@ export function Minimap({ thumbnailUrl, scale, position, imageRef, onPositionCha
   return (
     <div
       ref={minimapRef}
-      className={`absolute flex items-center justify-center bottom-4 right-4 w-48 transition-opacity duration-300 bg-black/30 backdrop-blur-md ${scale > 1 ? 'opacity-100' : 'opacity-0'}`}
+      className={`absolute flex items-center justify-center bottom-4 left-4 w-48 transition-opacity duration-300 bg-black/30 backdrop-blur-md ${scale > 1 ? 'opacity-100' : 'opacity-0'}`}
       onMouseDown={handleMouseDown}
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}

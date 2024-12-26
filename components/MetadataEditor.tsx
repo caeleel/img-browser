@@ -180,9 +180,9 @@ export function MetadataEditor({ metadata, credentials, editing, setEditing, sho
   }
 
   console.log(metadata?.latitude, metadata?.longitude);
-  return <div className={`z-10 w-64 backdrop-blur-lg text-white overflow-y-auto rounded-b-lg absolute top-8 shadow-lg ${showFilmstrip ? 'left-1' : '-left-64'}`} style={{
-    background: 'linear-gradient(to bottom, rgba(0, 0, 0, 1) 0%, rgba(0, 0, 0, 0.5) 10%)',
-    transition: 'left 0.3s ease-in-out'
+  return <div className={`z-10 w-64 backdrop-blur-lg text-white overflow-y-auto rounded-lg absolute top-12 shadow-lg ${showFilmstrip ? 'right-2' : '-right-64'}`} style={{
+    background: 'linear-gradient(to bottom, rgba(0, 0, 0, 0.8) 0%, rgba(0, 0, 0, 0.5) 10%)',
+    transition: 'right 0.3s ease-in-out'
   }}>
     <div className="p-4 text-xs">
       {metadata ? (
