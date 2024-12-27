@@ -151,8 +151,7 @@ export default function UploadPage() {
 
         // Check which files in this batch already exist
         const batchPaths = batch.map(file => {
-          const fileName = file.name.toLowerCase()
-            .replace(/\.(heic|heif|HEIC|HEIF)$/, '.jpg');
+          const fileName = file.name.replace(/\.(heic|heif|HEIC|HEIF)$/, '.jpg');
           return `photos/${dirName}/${fileName}`;
         });
 

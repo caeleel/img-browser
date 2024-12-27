@@ -1,4 +1,5 @@
-import { signedUrl } from "./s3";
+import router from "next/router";
+import { clearS3Cache, signedUrl } from "./s3";
 
 export function blur(e: KeyboardEvent) {
   // eslint-disable-next-line @typescript-eslint/no-unused-expressions
@@ -17,4 +18,10 @@ export function getCssOrientation(orientation: number) {
 export function getThumbnailUrl(path: string) {
   const thumbnailPath = path.replace('photos', 'thumbnails');
   return signedUrl({ path: thumbnailPath });
+}
+
+export function logout() {
+  localStorage.removeItem('doCredentials');
+  clearS3Cache();
+  router.push('/');
 }

@@ -10,6 +10,7 @@ import type { BucketItem, BucketItemWithBlob, S3Credentials } from '@/lib/types'
 import { ItemTile } from './ItemTile';
 import { fetchMetadata } from '@/lib/db';
 import LoadingSpinner from './LoadingSpinner';
+import Header from './Header';
 const IMAGE_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.gif', '.webp'];
 const VIDEO_EXTENSIONS = ['.mp4', '.ts', '.mov'];
 
@@ -238,27 +239,7 @@ export default function BucketBrowser({ onLogout, credentials }: { onLogout: () 
 
   return (
     <div>
-      <div className="fixed top-0 left-0 right-0 flex justify-between items-center px-4 z-10 backdrop-blur-lg bg-neutral-100/50 border-b border-black/5">
-        <div className="flex items-center flex-wrap text-gray-300 text-sm">
-          {breadcrumbs.map((crumb, index) => (
-            <div key={crumb.path} className="flex items-center">
-              {index > 0 && <span className="text-neutral-900 mx-3 text-sm">/</span>}
-              <button
-                onClick={() => updatePath(crumb.path)}
-                className="hover:text-black text-neutral-900 hover:underline max-w-[250px] text-left text-ellipsis overflow-hidden text-nowrap"
-              >
-                {crumb.name || '/'}
-              </button>
-            </div>
-          ))}
-        </div>
-        <button
-          onClick={onLogout}
-          className="py-1 px-4 my-3 border border-black/50 rounded-full hover:bg-black/20 ml-4  text-gray-800 text-xs"
-        >
-          Logout
-        </button>
-      </div>
+      <Header breadcrumbs={breadcrumbs} onLogout={onLogout} updatePath={updatePath} />
 
       {loading ? (
         <div className="h-screen w-screen">
@@ -271,7 +252,7 @@ export default function BucketBrowser({ onLogout, credentials }: { onLogout: () 
           </div>
         </div>
       ) : (
-        <div className="py-20 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 max-w-7xl p-4 mx-auto">
+        <div className="pb-20 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 max-w-7xl p-8 mx-auto">
           {contents.map((item) => (
             <ItemTile
               key={item.path}

@@ -8,6 +8,7 @@ import { getThumbnailUrl, getCssOrientation } from '@/lib/utils';
 import ImageViewer from '@/components/ImageViewer';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import { getCredentials } from '@/lib/s3';
+import Header from '@/components/Header';
 
 interface SearchResult extends ImageMetadata {
   similarity: number;
@@ -92,20 +93,7 @@ function SearchPageInner() {
   return (
     <div className="min-h-screen bg-gray-100">
       {/* Search Bar */}
-      <div className="sticky top-0 z-10 bg-white shadow-md">
-        <div className="max-w-7xl mx-auto p-4">
-          <div className="absolute left-2 top-2">
-
-          </div>
-          <input
-            type="text"
-            value={query}
-            onChange={handleSearchChange}
-            placeholder="Search images..."
-            className="w-full max-w-xl px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-        </div>
-      </div>
+      <Header search={query} onSearch={handleSearchChange} />
 
       {/* Results Grid */}
       <div className="max-w-7xl mx-auto p-4">

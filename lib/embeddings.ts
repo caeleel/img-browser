@@ -15,16 +15,15 @@ export async function getTextEmbedding(text: string): Promise<Embedding> {
   return data.embedding;
 }
 
-export async function getImageEmbedding(blob: Blob): Promise<Embedding> {
+export async function getImageEmbedding(blob: Blob): Promise<number[]> {
   const formData = new FormData();
-  formData.append('file', blob, 'image.jpg');
+  formData.append('file', blob);
+
   const response = await fetch(`${EMBED_HOST}/embed/image`, {
     method: 'POST',
     body: formData,
-    headers: {
-      'Content-Type': 'multipart/form-data',
-    }
   });
+
   const data = await response.json();
   return data.embedding;
 }
