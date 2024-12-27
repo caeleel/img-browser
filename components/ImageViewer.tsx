@@ -295,7 +295,7 @@ export default function ImageViewer({
       />
 
       {/* Main content */}
-      <div className="flex-1 flex flex-col w-full items-center justify-center relative transition-all duration-300 overflow-hidden">
+      <div className={`${showFilmstrip ? 'mt-4' : ''} flex-1 flex flex-col w-full items-center justify-center relative transition-all duration-300 overflow-hidden`}>
         {/* Image container */}
         {image.blobUrl ? (
           <>
