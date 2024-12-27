@@ -292,6 +292,8 @@ export default function ImageViewer({
         idx={idx}
         total={total}
         isFullscreen={isFullscreen}
+        editing={editing}
+        setEditing={setEditing}
       />
 
       {/* Main content */}
