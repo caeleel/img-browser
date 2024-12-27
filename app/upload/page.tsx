@@ -5,7 +5,7 @@ import { uploadFile } from '@/lib/s3';
 import exifr from 'exifr';
 import { getImageEmbedding } from '@/lib/embeddings';
 
-const BATCH_SIZE = 25;
+const BATCH_SIZE = 20;
 let heic2any: (options: {
   blob: Blob;
   multiple?: true;
