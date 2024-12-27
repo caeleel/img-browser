@@ -256,7 +256,7 @@ export default function UploadPage() {
           const embeddings: Record<number, number[]> = {};
           for (const item of validMetadata) {
             if (item?.embedding) {
-              embeddings[pathToIds.get(item.path)] = item.embedding;
+              embeddings[pathToIds[item.path]] = item.embedding;
             }
           }
 

@@ -38,8 +38,6 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
     }
 
-    console.log(JSON.stringify(metadata));
-
     const { rowCount, rows } = await sql.query(`
       INSERT INTO image_metadata (
         path, name, taken_at, latitude, longitude, city, state, country,
@@ -64,6 +62,7 @@ export async function POST(request: Request) {
         shutter_speed = EXCLUDED.shutter_speed,
         focal_length = EXCLUDED.focal_length,
         orientation = EXCLUDED.orientation
+      RETURNING id, path
     `,
       [JSON.stringify(metadata)]
     );
@@ -72,7 +71,7 @@ export async function POST(request: Request) {
     for (const row of rows) {
       pathToIds.set(row.path, row.id);
     }
-    return NextResponse.json({ count: rowCount, pathToIds });
+    return NextResponse.json({ count: rowCount, pathToIds: Object.fromEntries(pathToIds) });
   } catch (error) {
     console.error('Failed to insert metadata:', error);
     return NextResponse.json({ error: 'Failed to insert metadata' }, { status: 500 });
