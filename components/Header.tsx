@@ -1,6 +1,7 @@
 import { logout } from "@/lib/utils";
-import { ChangeEventHandler } from "react";
+import { ChangeEventHandler, useEffect } from "react";
 import Nav from "./Nav";
+import { useRouter } from "next/navigation";
 
 export default function Header({ breadcrumbs, onLogout = logout, updatePath, search, onSearch }: {
   breadcrumbs?: { path: string, name: string }[],
@@ -9,6 +10,27 @@ export default function Header({ breadcrumbs, onLogout = logout, updatePath, sea
   search?: string,
   onSearch?: ChangeEventHandler<HTMLInputElement>
 }) {
+  const router = useRouter();
+
+  useEffect(() => {
+    const keyboardHandler = (e: KeyboardEvent) => {
+      if (e.key === 'f' && e.metaKey) {
+        e.preventDefault();
+        if (onSearch) {
+          const input = document.querySelector('input');
+          if (input) {
+            input.focus();
+            input.select();
+          }
+        } else {
+          router.push('/search');
+        }
+      }
+    }
+    window.addEventListener('keydown', keyboardHandler);
+    return () => window.removeEventListener('keydown', keyboardHandler);
+  }, [onSearch, router])
+
   return (
     <div className="sticky top-0 z-10 backdrop-blur-lg bg-neutral-100/50 border-b border-black/5">
       {/* Navigation - shows above on small screens */}
@@ -55,6 +77,7 @@ export default function Header({ breadcrumbs, onLogout = logout, updatePath, sea
               </svg>
             </div>
             <input
+              autoFocus
               type="text"
               value={search}
               onChange={onSearch}
