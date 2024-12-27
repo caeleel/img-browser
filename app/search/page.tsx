@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, Suspense } from 'react';
 import { BucketItemWithBlob, ImageMetadata } from '@/lib/types';
-import { useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import debounce from 'lodash.debounce';
 import { getThumbnailUrl, getCssOrientation } from '@/lib/utils';
 import ImageViewer from '@/components/ImageViewer';
@@ -26,15 +26,44 @@ function SearchPageInner() {
   const [isLoading, setIsLoading] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const searchParams = useSearchParams();
+  const router = useRouter();
 
-  // Initialize query from URL
+  // Initialize query and selected index from URL
   useEffect(() => {
     const urlQuery = searchParams.get('q');
+
     if (urlQuery) {
       setQuery(urlQuery);
       performSearch(urlQuery);
     }
   }, []);
+
+  useEffect(() => {
+    const urlIndex = searchParams.get('i');
+    if (urlIndex) {
+      setSelectedIndex(parseInt(urlIndex));
+    } else {
+      setSelectedIndex(null);
+    }
+  }, [searchParams])
+
+  const updateUrl = useCallback((newQuery?: string, newIndex?: number | null) => {
+    const params = new URLSearchParams();
+
+    if (newQuery) {
+      params.set('q', newQuery);
+    } else if (searchParams.has('q')) {
+      params.set('q', searchParams.get('q')!);
+    }
+
+    if (newIndex !== undefined && newIndex !== null) {
+      params.set('i', newIndex.toString());
+    } else if (searchParams.has('i')) {
+      params.delete('i');
+    }
+
+    router.push(`/search?${params.toString()}`);
+  }, [searchParams, router]);
 
   const performSearch = async (searchQuery: string) => {
     if (!searchQuery.trim()) {
@@ -67,17 +96,19 @@ function SearchPageInner() {
         }))
       );
       setItems(newItems);
-      console.log(newItems);
 
-      // Update URL without triggering a new search
-      const newUrl = `/search?q=${encodeURIComponent(searchQuery)}`;
-      window.history.pushState({}, '', newUrl);
+      updateUrl(searchQuery);
     } catch (error) {
       console.error('Search error:', error);
     } finally {
       setIsLoading(false);
     }
   };
+
+  const handleSelectImage = useCallback((index: number | null) => {
+    setSelectedIndex(index);
+    updateUrl(undefined, index);
+  }, [updateUrl]);
 
   // Debounce search to avoid too many requests
   const debouncedSearch = useCallback(debounce(performSearch, 300), []);
@@ -110,7 +141,7 @@ function SearchPageInner() {
               return (
                 <button
                   key={item.metadata?.id}
-                  onClick={() => setSelectedIndex(index)}
+                  onClick={() => handleSelectImage(index)}
                   className="group relative aspect-square bg-gray-200 rounded-lg overflow-hidden hover:shadow-lg transition-shadow"
                 >
                   <div className="absolute inset-0 flex items-center justify-center">
@@ -136,14 +167,14 @@ function SearchPageInner() {
       </div>
 
       {/* Image Viewer */}
-      {selectedIndex !== null && (
+      {selectedIndex !== null && items[selectedIndex] && (
         <ImageViewer
           idx={selectedIndex}
           allImages={items}
-          onClose={() => setSelectedIndex(null)}
-          onNext={selectedIndex < items.length - 1 ? () => setSelectedIndex(selectedIndex + 1) : undefined}
-          onPrevious={selectedIndex > 0 ? () => setSelectedIndex(selectedIndex - 1) : undefined}
-          onSelectImage={(image) => setSelectedIndex(items.findIndex(i => i.path === image.path))}
+          onClose={() => handleSelectImage(null)}
+          onNext={selectedIndex < items.length - 1 ? () => handleSelectImage(selectedIndex + 1) : undefined}
+          onPrevious={selectedIndex > 0 ? () => handleSelectImage(selectedIndex - 1) : undefined}
+          onSelectImage={(image) => handleSelectImage(items.findIndex(i => i.path === image.path))}
           credentials={credentials}
         />
       )}

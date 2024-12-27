@@ -1,11 +1,12 @@
 import { logout } from "@/lib/utils";
 import { ChangeEventHandler } from "react";
 
-export default function Header({ breadcrumbs, onLogout = logout, updatePath, search, onSearch }: {
+export default function Header({ breadcrumbs, onLogout = logout, updatePath, search, onSearch, upload }: {
   breadcrumbs?: { path: string, name: string }[],
   onLogout?: () => void, updatePath?: (path: string) => void,
   search?: string,
   onSearch?: ChangeEventHandler<HTMLInputElement>
+  upload?: boolean
 }) {
   return (
     <div className="sticky top-0 w-full flex justify-between items-center px-4 z-10 backdrop-blur-lg bg-neutral-100/50 border-b border-black/5">
@@ -38,6 +39,11 @@ export default function Header({ breadcrumbs, onLogout = logout, updatePath, sea
             placeholder="Search images..."
             className="bg-white/5 max-w-md px-2 py-1 pl-8 text-sm rounded-full border border-black/10 focus:outline-none focus:ring-1 focus:ring-black/50"
           />
+        </div>
+      )}
+      {upload && (
+        <div className="px-4 text-sm">
+          Upload
         </div>
       )}
       <button
