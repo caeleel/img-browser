@@ -7,7 +7,6 @@ import { getTextEmbedding } from "@/lib/embeddings";
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const query = searchParams.get('q');
-  const threshold = parseFloat(searchParams.get('threshold') || '1');  // Default similarity threshold
   const limit = parseInt(searchParams.get('limit') || '50');  // Default result limit
   const accessKeyId = request.headers.get('X-DO-ACCESS-KEY-ID');
   const secretAccessKey = request.headers.get('X-DO-SECRET-ACCESS-KEY');
@@ -27,7 +26,6 @@ export async function GET(request: Request) {
   try {
     // Get embedding for search query
     const embedding = await getTextEmbedding(query);
-    console.log(embedding);
 
     // Search for similar images using cosine similarity
     const results = await sql.query<ImageMetadata & { similarity: number }>(`

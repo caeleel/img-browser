@@ -1,18 +1,25 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, Suspense } from 'react';
 import { BucketItemWithBlob, ImageMetadata } from '@/lib/types';
 import { useSearchParams } from 'next/navigation';
 import debounce from 'lodash.debounce';
 import { getThumbnailUrl, getCssOrientation } from '@/lib/utils';
 import ImageViewer from '@/components/ImageViewer';
 import LoadingSpinner from '@/components/LoadingSpinner';
+import { getCredentials } from '@/lib/s3';
 
 interface SearchResult extends ImageMetadata {
   similarity: number;
 }
 
 export default function SearchPage() {
+  return <Suspense>
+    <SearchPageInner />
+  </Suspense>
+}
+
+function SearchPageInner() {
   const [query, setQuery] = useState('');
   const [items, setItems] = useState<BucketItemWithBlob[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -80,7 +87,7 @@ export default function SearchPage() {
     debouncedSearch(newQuery);
   };
 
-  const credentials = JSON.parse(localStorage.getItem('doCredentials') || '{}');
+  const credentials = getCredentials();
 
   return (
     <div className="min-h-screen bg-gray-100">
