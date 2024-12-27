@@ -209,7 +209,9 @@ export default function BucketBrowser({ onLogout, credentials }: { onLogout: () 
       }
     }
 
-    router.push(`/?${params.toString()}`);
+    router.push(`/?${params.toString()}`, {
+      scroll: false
+    });
   };
 
   const updatePath = (newPath: string) => {

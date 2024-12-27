@@ -9,6 +9,7 @@ import ImageViewer from '@/components/ImageViewer';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import { getCredentials } from '@/lib/s3';
 import Header from '@/components/Header';
+import FullscreenContainer from '@/components/FullscreenContainer';
 
 interface SearchResult extends ImageMetadata {
   similarity: number;
@@ -52,6 +53,8 @@ function SearchPageInner() {
 
     if (newQuery) {
       params.set('q', newQuery);
+    } else if (newQuery === '') {
+      params.delete('q');
     } else if (searchParams.has('q')) {
       params.set('q', searchParams.get('q')!);
     }
@@ -62,7 +65,10 @@ function SearchPageInner() {
       params.delete('i');
     }
 
-    router.push(`/search?${params.toString()}`);
+    // Add scroll: false option to prevent automatic scrolling
+    router.push(`/search?${params.toString()}`, {
+      scroll: false
+    });
   }, [searchParams, router]);
 
   const performSearch = async (searchQuery: string) => {
@@ -96,8 +102,6 @@ function SearchPageInner() {
         }))
       );
       setItems(newItems);
-
-      updateUrl(searchQuery);
     } catch (error) {
       console.error('Search error:', error);
     } finally {
@@ -114,6 +118,9 @@ function SearchPageInner() {
   const debouncedSearch = useCallback(debounce(performSearch, 300), []);
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setIsLoading(true);
+    console.log('search', e.target.value);
+    updateUrl(e.target.value);
     const newQuery = e.target.value;
     setQuery(newQuery);
     debouncedSearch(newQuery);
@@ -128,10 +135,16 @@ function SearchPageInner() {
 
       {/* Results Grid */}
       <div className="max-w-7xl mx-auto p-4">
-        {isLoading ? (
-          <div className="h-64">
+        {query === '' ? (
+          <FullscreenContainer>
+            <div className="text-black/50">
+              Enter a search query to find images
+            </div>
+          </FullscreenContainer>
+        ) : isLoading ? (
+          <FullscreenContainer>
             <LoadingSpinner size="large" />
-          </div>
+          </FullscreenContainer>
         ) : items.length > 0 ? (
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
             {items.map((item, index) => {
