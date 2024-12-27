@@ -6,6 +6,7 @@ import { useSearchParams } from 'next/navigation';
 import debounce from 'lodash.debounce';
 import { getThumbnailUrl, getCssOrientation } from '@/lib/utils';
 import ImageViewer from '@/components/ImageViewer';
+import LoadingSpinner from '@/components/LoadingSpinner';
 
 interface SearchResult extends ImageMetadata {
   similarity: number;
@@ -86,6 +87,9 @@ export default function SearchPage() {
       {/* Search Bar */}
       <div className="sticky top-0 z-10 bg-white shadow-md">
         <div className="max-w-7xl mx-auto p-4">
+          <div className="absolute left-2 top-2">
+
+          </div>
           <input
             type="text"
             value={query}
@@ -99,8 +103,8 @@ export default function SearchPage() {
       {/* Results Grid */}
       <div className="max-w-7xl mx-auto p-4">
         {isLoading ? (
-          <div className="flex justify-center items-center h-64">
-            <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent"></div>
+          <div className="h-64">
+            <LoadingSpinner size="large" />
           </div>
         ) : items.length > 0 ? (
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">

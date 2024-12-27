@@ -1,5 +1,6 @@
 import { BucketItemWithBlob } from "@/lib/types";
 import { getCssOrientation } from "@/lib/utils";
+import LoadingSpinner from "./LoadingSpinner";
 
 function DirectoryTile({ item, handleDirectoryClick }: {
   item: BucketItemWithBlob,
@@ -24,7 +25,7 @@ function ImageTile({ item, handleImageClick }: {
 
   if (!blobUrl) {
     return <div className="w-full h-48 flex items-center justify-center">
-      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-500"></div>
+      <LoadingSpinner size="small" light />
     </div>
   }
 

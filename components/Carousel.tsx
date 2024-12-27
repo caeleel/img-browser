@@ -1,5 +1,6 @@
 import { BucketItemWithBlob } from "@/lib/types";
 import { getCssOrientation } from "@/lib/utils";
+import LoadingSpinner from '@/components/LoadingSpinner';
 
 export default function Carousel({ images, shown, onSelectImage }: {
   images: (BucketItemWithBlob | null)[],
@@ -36,8 +37,8 @@ export default function Carousel({ images, shown, onSelectImage }: {
                   className="h-full w-auto object-cover"
                 />
               ) : (
-                <div className="h-full w-24 flex items-center justify-center">
-                  {img && <div className="animate-spin rounded-full h-6 w-6 border-2 border-gray-500 border-t-transparent" />}
+                <div className="h-full w-24">
+                  {img ? <LoadingSpinner size="small" /> : <div className="h-full w-full bg-white/5" />}
                 </div>
               )}
             </button>

@@ -11,8 +11,6 @@ interface VideoPlayerProps {
 }
 
 export default function VideoPlayer({ video, onClose }: VideoPlayerProps) {
-  const [loading, setLoading] = useState(true);
-
   useEffect(() => {
     const keyDownHandler = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
@@ -38,15 +36,9 @@ export default function VideoPlayer({ video, onClose }: VideoPlayerProps) {
           controls
           autoPlay
           className="w-full"
-          onLoadedData={() => setLoading(false)}
         >
           Your browser does not support the video tag.
         </video>
-        {loading && (
-          <div className="absolute inset-0 flex items-center justify-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-2 border-white border-t-transparent"></div>
-          </div>
-        )}
       </div>
     </div>
   );

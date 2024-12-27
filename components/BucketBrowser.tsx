@@ -9,6 +9,7 @@ import { fetchFile, listContents, ROOT_CONTENTS, signedUrl } from '@/lib/s3';
 import type { BucketItem, BucketItemWithBlob, S3Credentials } from '@/lib/types';
 import { ItemTile } from './ItemTile';
 import { fetchMetadata } from '@/lib/db';
+import LoadingSpinner from './LoadingSpinner';
 const IMAGE_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.gif', '.webp'];
 const VIDEO_EXTENSIONS = ['.mp4', '.ts', '.mov'];
 
@@ -260,8 +261,8 @@ export default function BucketBrowser({ onLogout, credentials }: { onLogout: () 
       </div>
 
       {loading ? (
-        <div className="text-center flex justify-center items-center h-screen w-screen">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-500 mx-auto"></div>
+        <div className="h-screen w-screen">
+          <LoadingSpinner size="large" />
         </div>
       ) : contents.length === 0 ? (
         <div className="flex flex-col flex-grow justify-center items-center">

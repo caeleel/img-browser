@@ -10,6 +10,7 @@ import exifr from 'exifr';
 import Carousel from './Carousel';
 import { Minimap } from './Minimap';
 import TopBar from './TopBar';
+import LoadingSpinner from './LoadingSpinner';
 
 let lastScale = 1;
 let lastPosition = { x: 0, y: 0 };
@@ -323,8 +324,8 @@ export default function ImageViewer({
             />
           </>
         ) : (
-          <div className="flex-1 flex items-center justify-center">
-            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+          <div className="flex-1">
+            <LoadingSpinner size="small" light />
           </div>
         )}
       </div>
@@ -332,7 +333,7 @@ export default function ImageViewer({
       {/* Toggle filmstrip button */}
       <button
         onClick={() => setShowFilmstrip(prev => !prev)}
-        className="absolute bottom-4 right-4 p-2 rounded-md bg-black/5 text-white hover:bg-black/10 transition-opacity z-50"
+        className="absolute bottom-4 right-4 p-2 rounded-md bg-white/10 text-white hover:bg-black/5 z-50"
         aria-label="Toggle filmstrip"
       >
         <svg className="w-6 h-6" fill="none" stroke="black" viewBox="0 0 32 16">
