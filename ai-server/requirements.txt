@@ -1,13 +1,26 @@
+# CLIP and its dependencies
 torch
 torchvision
 Pillow
-fastapi
-uvicorn
-numpy
-pydantic
-python-multipart
+git+https://github.com/openai/CLIP.git
 ftfy
 regex
 tqdm
+
+# FastAPI server dependencies
+fastapi
+uvicorn
+pydantic
+python-multipart
 typing-extensions
-git+https://github.com/openai/CLIP.git 
+
+# Script dependencies
+python-dotenv
+boto3
+psycopg[binary]
+aiohttp
+numpy
+
+# Development dependencies
+black
+pylint 

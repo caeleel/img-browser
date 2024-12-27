@@ -4,6 +4,7 @@ from PIL import Image
 import clip
 import io
 from fastapi import FastAPI, HTTPException, File
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from concurrent.futures import ThreadPoolExecutor
 import uvicorn
@@ -13,6 +14,15 @@ import asyncio
 
 # Initialize FastAPI app
 app = FastAPI()
+
+# Add CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Allows all origins
+    allow_credentials=True,
+    allow_methods=["*"],  # Allows all methods
+    allow_headers=["*"],  # Allows all headers
+)
 
 # Global model and preprocessing function
 print("Loading CLIP model...", file=sys.stderr)
