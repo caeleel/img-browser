@@ -40,7 +40,7 @@ export async function POST(request: Request) {
 
     console.log(JSON.stringify(metadata));
 
-    const { rowCount } = await sql.query(`
+    const { rowCount, rows } = await sql.query(`
       INSERT INTO image_metadata (
         path, name, taken_at, latitude, longitude, city, state, country,
         camera_make, camera_model, lens_model, aperture, iso, 
@@ -68,7 +68,11 @@ export async function POST(request: Request) {
       [JSON.stringify(metadata)]
     );
 
-    return NextResponse.json({ count: rowCount });
+    const pathToIds = new Map<string, number>();
+    for (const row of rows) {
+      pathToIds.set(row.path, row.id);
+    }
+    return NextResponse.json({ count: rowCount, pathToIds });
   } catch (error) {
     console.error('Failed to insert metadata:', error);
     return NextResponse.json({ error: 'Failed to insert metadata' }, { status: 500 });

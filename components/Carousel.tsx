@@ -8,12 +8,12 @@ export default function Carousel({ images, shown, onSelectImage }: {
 }) {
   return (
     <div
-      className={`bg-black bg-opacity-80 transform transition-all duration-300 ${shown ? 'h-32' : 'h-0'
+      className={`bg-white bg-opacity-80 transform transition-all duration-300 ${shown ? 'h-32' : 'h-0'
         }`}
     >
       <div className="h-full w-full flex justify-center px-4 py-4 space-x-4 overflow-x-hidden relative">
         <div className="absolute inset-0 z-10 pointer-events-none" style={{
-          background: "linear-gradient(90deg, rgba(0,0,0,1) 8%, rgba(0,0,0,0) 35%, rgba(0,0,0,0) 65%, rgba(0,0,0,1) 92%)"
+          background: "linear-gradient(90deg, rgba(255,255,255,1) 8%, rgba(255,255,255,0) 35%, rgba(255,255,255,0) 65%, rgba(255,255,255,1) 92%)"
         }} />
         {images.map((img, i) => {
           const blobUrl = img?.thumbnailBlobUrl || img?.blobUrl;
@@ -36,7 +36,7 @@ export default function Carousel({ images, shown, onSelectImage }: {
                   className="h-full w-auto object-cover"
                 />
               ) : (
-                <div className="h-full w-24 bg-black flex items-center justify-center">
+                <div className="h-full w-24 flex items-center justify-center">
                   {img && <div className="animate-spin rounded-full h-6 w-6 border-2 border-gray-500 border-t-transparent" />}
                 </div>
               )}

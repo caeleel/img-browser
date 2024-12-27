@@ -3,6 +3,7 @@
 import { useState, useCallback, useRef } from 'react';
 import { uploadFile } from '@/lib/s3';
 import exifr from 'exifr';
+import { getImageEmbedding } from '@/lib/embeddings';
 
 const BATCH_SIZE = 25;
 let heic2any: (options: {
@@ -205,6 +206,9 @@ export default function UploadPage() {
                 thumbnail
               );
 
+              // Get the image embedding using the newly created thumbnail
+              const embedding = await getImageEmbedding(thumbnail);
+
               return {
                 path: `photos/${dirName}/${processedFile.name}`,
                 name: processedFile.name,
@@ -214,6 +218,7 @@ export default function UploadPage() {
                 city: null,
                 state: null,
                 country: null,
+                embedding,
                 camera_make: exif?.Make || null,
                 camera_model: exif?.Model || null,
                 lens_model: exif?.LensModel || null,
@@ -234,11 +239,39 @@ export default function UploadPage() {
         const validMetadata = batchMetadata.filter(Boolean);
         if (validMetadata.length > 0) {
           const credentials = JSON.parse(localStorage.getItem('doCredentials') || '{}');
-          await fetch('/api/metadata', {
+
+          // First store metadata
+          const metadataResponse = await fetch('/api/metadata', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ metadata: validMetadata, credentials })
           });
+
+          if (!metadataResponse.ok) {
+            throw new Error('Failed to store metadata');
+          }
+
+          const { pathToIds } = await metadataResponse.json();
+
+          // Then store embeddings
+          const embeddings: Record<number, number[]> = {};
+          for (const item of validMetadata) {
+            if (item?.embedding) {
+              embeddings[pathToIds.get(item.path)] = item.embedding;
+            }
+          }
+
+          if (Object.keys(embeddings).length > 0) {
+            const embeddingResponse = await fetch('/api/embeddings', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ embeddings, credentials })
+            });
+
+            if (!embeddingResponse.ok) {
+              throw new Error('Failed to store embeddings');
+            }
+          }
         }
 
         setStatus(prev => ({ ...prev, processed: prev.processed + batch.length }));

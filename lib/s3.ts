@@ -93,7 +93,7 @@ export async function listContents(path: string, continuationToken?: string): Pr
   };
 }
 
-export async function signedUrl(item: BucketItem): Promise<string> {
+export async function signedUrl(item: { path: string }): Promise<string> {
   const s3Client = getS3Client();
 
   const command = new GetObjectCommand({

@@ -236,8 +236,8 @@ export default function BucketBrowser({ onLogout, credentials }: { onLogout: () 
   }, [searchParams, allContents]);
 
   return (
-    <div className="w-screen h-screen flex flex-col">
-      <div className="absolute top-0 left-0 right-0 flex justify-between items-center px-4 z-10 backdrop-blur-lg bg-white/70">
+    <div>
+      <div className="fixed top-0 left-0 right-0 flex justify-between items-center px-4 z-10 backdrop-blur-lg bg-neutral-100/50 border-b border-black/5">
         <div className="flex items-center flex-wrap text-gray-300 text-sm">
           {breadcrumbs.map((crumb, index) => (
             <div key={crumb.path} className="flex items-center">
@@ -253,14 +253,14 @@ export default function BucketBrowser({ onLogout, credentials }: { onLogout: () 
         </div>
         <button
           onClick={onLogout}
-          className="py-1 px-4 my-3 bg-black/40 rounded-full hover:bg-black/20 font-semibold ml-4  text-gray-300 text-xs"
+          className="py-1 px-4 my-3 border border-black/50 rounded-full hover:bg-black/20 ml-4  text-gray-800 text-xs"
         >
           Logout
         </button>
       </div>
 
       {loading ? (
-        <div className="text-center flex justify-center items-center flex-grow">
+        <div className="text-center flex justify-center items-center h-screen w-screen">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-500 mx-auto"></div>
         </div>
       ) : contents.length === 0 ? (
@@ -270,7 +270,7 @@ export default function BucketBrowser({ onLogout, credentials }: { onLogout: () 
           </div>
         </div>
       ) : (
-        <div className="overflow-y-scroll pt-16 pb-16 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4 px-4">
+        <div className="py-20 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 max-w-7xl p-4 mx-auto">
           {contents.map((item) => (
             <ItemTile
               key={item.path}

@@ -7,9 +7,9 @@ function DirectoryTile({ item, handleDirectoryClick }: {
 }) {
   return <button
     onClick={() => handleDirectoryClick(item.path)}
-    className="w-full h-16 flex hover:bg-[rgba(25,103,64,0.9)] bg-white/10 transition-colors"
+    className="w-full h-16 flex hover:bg-[rgba(25,103,64,0.9)] hover:text-white bg-black/5 transition-colors rounded overflow-hidden"
   >
-    <div className="w-full p-4 text-white text-left text-xs font-semibold">
+    <div className="w-full p-4 text-left text-sm">
       📁 {item.name}
     </div>
   </button>
@@ -23,7 +23,7 @@ function ImageTile({ item, handleImageClick }: {
   const { metadata } = item
 
   if (!blobUrl) {
-    return <div className="w-full h-48 xl:h-[calc((100vh-176px)/4)] flex items-center justify-center">
+    return <div className="w-full h-48 flex items-center justify-center">
       <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-500"></div>
     </div>
   }
@@ -33,21 +33,14 @@ function ImageTile({ item, handleImageClick }: {
     rotation = getCssOrientation(metadata.orientation)
   }
 
-  return <div className="relative group bg-white/5">
-    <div className="w-full overflow-hidden">
+  return <div className="relative group bg-black/5 hover:scale-105 transition-all duration-300 rounded">
+    <div className="w-full overflow-hidden rounded">
       <img
         src={blobUrl}
         alt={item.name}
-        className={`w-full h-48 xl:h-[calc((100vh-176px)/4)] object-cover cursor-pointer ${rotation}`}
+        className={`w-full h-48 object-cover cursor-pointer ${rotation}`}
         onClick={() => handleImageClick(item)}
       />
-      <div className="absolute bottom-2 left-2 rounded-full px-2 py-1 bg-black bg-opacity-50 group-hover:opacity-100 transition-opacity duration-300">
-        <div className="flex flex-col items-center justify-center h-full">
-          <div className="text-white text-xs">
-            {item.name}
-          </div>
-        </div>
-      </div>
     </div>
   </div>
 }
@@ -58,16 +51,16 @@ function VideoTile({ item, loadingVideo, handleVideoClick }: {
   handleVideoClick: (item: BucketItemWithBlob) => void
 }) {
   if (loadingVideo === item.path) {
-    return <div className="w-full h-48 xl:h-[calc((100vh-176px)/4)] flex items-center justify-center">
+    return <div className="w-full h-48 flex items-center justify-center">
       <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-500"></div>
     </div>
   }
 
   return <button
     onClick={() => handleVideoClick(item)}
-    className="w-full h-48 xl:h-[calc((100vh-176px)/4)] flex bg-neutral-800 hover:bg-[rgba(25,103,64,0.9)] transition-colors"
+    className="w-full h-48 flex bg-black/5 hover:bg-[rgba(25,103,64,0.9)] hover:text-white transition-colors rounded overflow-hidden"
   >
-    <div className="w-full p-4 text-white text-left text-xs font-semibold">
+    <div className="w-full p-4 text-left text-sm">
       🎥 {item.name}
     </div>
   </button >

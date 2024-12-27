@@ -279,7 +279,7 @@ export default function ImageViewer({
   }, [imageRef, idx, editing]);
 
   return (
-    <div ref={containerRef} className="fixed h-screen inset-0 bg-black z-50 flex flex-col">
+    <div ref={containerRef} className="fixed h-screen inset-0 bg-white z-50 flex flex-col">
       <TopBar
         onPrevious={onPrevious}
         onNext={onNext}
@@ -332,13 +332,13 @@ export default function ImageViewer({
       {/* Toggle filmstrip button */}
       <button
         onClick={() => setShowFilmstrip(prev => !prev)}
-        className="absolute bottom-4 right-4 p-2 rounded-full bg-black bg-opacity-50 text-white hover:bg-opacity-70 transition-opacity z-50"
+        className="absolute bottom-4 right-4 p-2 rounded-md bg-black/5 text-white hover:bg-black/10 transition-opacity z-50"
         aria-label="Toggle filmstrip"
       >
-        <svg className="w-6 h-6" fill="none" stroke="white" viewBox="0 0 32 16">
-          <rect x="4" y="2" width="6" height="12" fill="white" opacity="0.7" />
-          <rect x="12" y="0" width="8" height="16" fill="white" />
-          <rect x="22" y="2" width="6" height="12" fill="white" opacity="0.7" />
+        <svg className="w-6 h-6" fill="none" stroke="black" viewBox="0 0 32 16">
+          <rect x="4" y="2" width="6" height="12" fill="black" opacity="0.3" />
+          <rect x="12" y="0" width="8" height="16" fill="black" opacity="0.5" />
+          <rect x="22" y="2" width="6" height="12" fill="black" opacity="0.3" />
         </svg>
       </button>
 
