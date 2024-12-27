@@ -349,7 +349,7 @@ export default function UploadPage() {
 
   return (
     <div>
-      <Header upload />
+      <Header />
       <div className="p-8 max-w-4xl mx-auto">
 
         {/* Drop Zone */}
