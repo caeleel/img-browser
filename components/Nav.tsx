@@ -13,7 +13,7 @@ export default function Nav() {
   const pathname = usePathname();
 
   return (
-    <div className="px-1 py-1 my-[5px] bg-black/5 rounded-full shadow-inner">
+    <div className="px-1 py-1 my-[5px] bg-black/5 rounded-full shadow-inner pointer-events-auto">
       <div className="flex gap-1">
         {NAV_ITEMS.map(({ label, href }) => {
           const isActive = pathname === href ||

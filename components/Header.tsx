@@ -43,7 +43,7 @@ export default function Header({ breadcrumbs, onLogout = logout, updatePath, sea
         )}
 
         {/* Center navigation - hidden on small screens */}
-        <div className="absolute left-0 right-0 top-0 hidden lg:flex flex-1 justify-center">
+        <div className="absolute pointer-events-none left-0 right-0 top-0 hidden lg:flex flex-1 justify-center">
           <Nav />
         </div>
 
