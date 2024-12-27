@@ -8,9 +8,9 @@ function DirectoryTile({ item, handleDirectoryClick }: {
 }) {
   return <button
     onClick={() => handleDirectoryClick(item.path)}
-    className="w-full h-16 flex hover:bg-[rgba(25,103,64,0.9)] hover:text-white bg-black/5 transition-colors rounded overflow-hidden"
+    className="w-full h-48 flex hover:border-black border-4 border-white bg-black/5 overflow-hidden items-center justify-center"
   >
-    <div className="w-full p-4 text-left text-sm">
+    <div className="p-4 text-left text-black/50 text-sm">
       📁 {item.name}
     </div>
   </button>
@@ -34,8 +34,8 @@ function ImageTile({ item, handleImageClick }: {
     rotation = getCssOrientation(metadata.orientation)
   }
 
-  return <div className="relative group bg-black/5 hover:scale-105 transition-all duration-300 rounded">
-    <div className="w-full overflow-hidden rounded">
+  return (
+    <div className="relative group bg-black/5 overflow-hidden border-4 border-white hover:border-black">
       <img
         src={blobUrl}
         alt={item.name}
@@ -43,7 +43,7 @@ function ImageTile({ item, handleImageClick }: {
         onClick={() => handleImageClick(item)}
       />
     </div>
-  </div>
+  );
 }
 
 function VideoTile({ item, loadingVideo, handleVideoClick }: {
@@ -59,9 +59,9 @@ function VideoTile({ item, loadingVideo, handleVideoClick }: {
 
   return <button
     onClick={() => handleVideoClick(item)}
-    className="w-full h-48 flex bg-black/5 hover:bg-[rgba(25,103,64,0.9)] hover:text-white transition-colors rounded overflow-hidden"
+    className="w-full h-48 flex bg-black/5 hover:border-black border-4 border-white overflow-hidden items-center justify-center"
   >
-    <div className="w-full p-4 text-left text-sm">
+    <div className="p-4 text-left text-sm text-black/50">
       🎥 {item.name}
     </div>
   </button >

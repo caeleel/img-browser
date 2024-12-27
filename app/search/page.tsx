@@ -137,7 +137,7 @@ function SearchPageInner() {
       <div className="max-w-7xl mx-auto p-4">
         {query === '' ? (
           <FullscreenContainer>
-            <div className="text-black/50">
+            <div className="text-black/30">
               Enter a search query to find images
             </div>
           </FullscreenContainer>

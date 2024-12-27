@@ -42,20 +42,20 @@ export default function Header({ breadcrumbs, onLogout = logout, updatePath, sea
       <div className="flex w-full flex-row-reverse gap-4 items-center justify-between px-4 py-2">
         <button
           onClick={onLogout}
-          className="py-1 px-4 border border-black/5 rounded-full hover:bg-black/10 hover:text-black/50 text-black/30 text-sm whitespace-nowrap"
+          className="py-1 px-4 border border-black/30 rounded-full hover:bg-black/10 hover:text-black text-black/50 text-sm whitespace-nowrap"
         >
           Sign out
         </button>
 
         {/* Left section */}
         {breadcrumbs !== undefined && updatePath !== undefined && (
-          <div className="flex items-center flex-wrap text-gray-300 text-sm">
+          <div className="flex items-center flex-wrap text-black/50 text-sm">
             {breadcrumbs.map((crumb, index) => (
               <div key={crumb.path} className="flex items-center">
-                {index > 0 && <span className="text-neutral-900 mx-3 text-sm">/</span>}
+                {index > 0 && <span className="mx-3 text-sm">/</span>}
                 <button
                   onClick={() => updatePath(crumb.path)}
-                  className="hover:text-black text-neutral-900 hover:underline max-w-[250px] text-left text-ellipsis overflow-hidden text-nowrap"
+                  className="hover:text-black hover:underline max-w-[250px] text-left text-ellipsis overflow-hidden text-nowrap"
                 >
                   {crumb.name || '/'}
                 </button>
