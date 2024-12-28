@@ -1,334 +1,26 @@
 'use client';
 
-import { useState, useCallback, useRef } from 'react';
-import { uploadFile } from '@/lib/s3';
-import exifr from 'exifr';
-import { getImageEmbedding } from '@/lib/embeddings';
+import { useState, useCallback } from 'react';
 import Header from '@/components/Header';
+import { processDataTransfer, UploadStatus } from '@/lib/upload';
 
-const BATCH_SIZE = 20;
-let heic2any: (options: {
-  blob: Blob;
-  multiple?: true;
-  toType?: string;
-  quality?: number;
-  gifInterval?: number;
-}) => Promise<Blob | Blob[]>;
-
-if (typeof window !== 'undefined') {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  heic2any = require('heic2any');
-}
-
-interface UploadStatus {
-  total: number;
-  processed: number;
-  currentBatch: string[];
-  error: string | null;
-}
-
-async function createThumbnail(file: File): Promise<Blob> {
-  const MAX_SIZE = 800;
-
-  // Create image element
-  const img = new Image();
-  const objectUrl = URL.createObjectURL(file);
-
-  try {
-    // Load image
-    await new Promise((resolve, reject) => {
-      img.onload = resolve;
-      img.onerror = (e) => {
-        console.log('error loading image', e);
-        reject(e);
-      }
-      img.src = objectUrl;
-    });
-
-    // Calculate new dimensions
-    let width = img.width;
-    let height = img.height;
-
-    if (width > height) {
-      if (width > MAX_SIZE) {
-        height = Math.round(height * MAX_SIZE / width);
-        width = MAX_SIZE;
-      }
-    } else {
-      if (height > MAX_SIZE) {
-        width = Math.round(width * MAX_SIZE / height);
-        height = MAX_SIZE;
-      }
-    }
-
-    // Create canvas
-    const canvas = document.createElement('canvas');
-    canvas.width = width;
-    canvas.height = height;
-
-    // Draw resized image
-    const ctx = canvas.getContext('2d');
-    if (!ctx) throw new Error('Could not get canvas context');
-
-    ctx.drawImage(img, 0, 0, width, height);
-
-    // Convert to blob
-    const blob = await new Promise<Blob>((resolve, reject) => {
-      canvas.toBlob(
-        (blob) => {
-          if (blob) resolve(blob);
-          else reject(new Error('Failed to create blob'));
-        },
-        'image/jpeg',
-        0.8
-      );
-    });
-
-    return blob;
-  } finally {
-    URL.revokeObjectURL(objectUrl);
-  }
-}
-
-async function convertHeicToJpeg(file: File): Promise<File> {
-  if (!file.name.toLowerCase().endsWith('.heic') && !file.name.toLowerCase().endsWith('.heif')) {
-    return file;
-  }
-
-  try {
-    const blob = await heic2any({
-      blob: file,
-      toType: 'image/jpeg',
-      quality: 0.9
-    });
-
-    // Convert blob to file to maintain filename
-    return new File(
-      [blob as Blob],
-      file.name.replace(/\.(heic|HEIC|heif|HEIF)$/, '.jpg'),
-      { type: 'image/jpeg' }
-    );
-  } catch (error) {
-    console.error('HEIC conversion failed:', error);
-    throw new Error(`Failed to convert HEIC file ${file.name}`);
-  }
-}
+const abortController: { current: AbortController | null } = { current: null };
 
 export default function UploadPage() {
   const [status, setStatus] = useState<UploadStatus>({
     total: 0,
     processed: 0,
     currentBatch: [],
-    error: null
+    error: null,
+    isProcessing: false
   });
   const [isDragging, setIsDragging] = useState(false);
-  const [isProcessing, setIsProcessing] = useState(false);
-  const abortController = useRef<AbortController | null>(null);
-
-  const processFiles = async (files: File[], dirName: string) => {
-    const imageFiles = Array.from(files).filter(file =>
-      file.type.startsWith('image/') || file.name.toLowerCase().endsWith('.heic') || file.name.toLowerCase().endsWith('.heif')
-    );
-
-    setStatus({
-      total: imageFiles.length,
-      processed: 0,
-      currentBatch: [],
-      error: null
-    });
-
-    const credentials = JSON.parse(localStorage.getItem('doCredentials') || '{}');
-    setIsProcessing(true);
-    abortController.current = new AbortController();
-
-    try {
-      for (let i = 0; i < imageFiles.length; i += BATCH_SIZE) {
-        if (abortController.current?.signal.aborted) {
-          break;
-        }
-
-        const batch = imageFiles.slice(i, i + BATCH_SIZE);
-
-        // Check which files in this batch already exist
-        const batchPaths = batch.map(file => {
-          const fileName = file.name.replace(/\.(heic|heif|HEIC|HEIF)$/, '.jpg');
-          return `photos/${dirName}/${fileName}`;
-        });
-
-        const response = await fetch('/api/batch_meta', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            paths: batchPaths,
-            credentials
-          })
-        });
-        const existingMetadata = await response.json();
-        const existingPathsSet = new Set(Object.keys(existingMetadata));
-
-        // Filter out already processed images from this batch
-        const newBatchFiles = batch.filter((file, index) => !existingPathsSet.has(batchPaths[index]));
-
-        if (newBatchFiles.length === 0) {
-          setStatus(prev => ({
-            ...prev,
-            processed: prev.processed + batch.length
-          }));
-          continue;
-        }
-
-        setStatus(prev => ({ ...prev, currentBatch: newBatchFiles.map(f => f.name) }));
-
-        const batchMetadata = await Promise.all(
-          newBatchFiles.map(async (file) => {
-            try {
-              // Convert HEIC to JPEG if necessary
-              const processedFile = await convertHeicToJpeg(file);
-
-              // Read EXIF data
-              const arrayBuffer = await processedFile.arrayBuffer();
-              const originalBuffer = await file.arrayBuffer();
-              const exif = await exifr.parse(originalBuffer);
-
-              // Create thumbnail
-              const thumbnail = await createThumbnail(processedFile);
-
-              // Upload original
-              await uploadFile(
-                `photos/${dirName}/${processedFile.name}`,
-                new Blob([arrayBuffer], { type: processedFile.type })
-              );
-
-              // Upload thumbnail
-              await uploadFile(
-                `thumbnails/${dirName}/${processedFile.name}`,
-                thumbnail
-              );
-
-              // Get the image embedding using the newly created thumbnail
-              const embedding = await getImageEmbedding(thumbnail);
-
-              return {
-                path: `photos/${dirName}/${processedFile.name}`,
-                name: processedFile.name,
-                taken_at: exif?.DateTimeOriginal || null,
-                latitude: exif?.latitude || null,
-                longitude: exif?.longitude || null,
-                city: null,
-                state: null,
-                country: null,
-                embedding,
-                camera_make: exif?.Make || null,
-                camera_model: exif?.Model || null,
-                lens_model: exif?.LensModel || null,
-                aperture: exif?.FNumber || null,
-                iso: exif?.ISO || null,
-                shutter_speed: exif?.ExposureTime || null,
-                focal_length: exif?.FocalLength || null,
-                orientation: 1,
-              };
-            } catch (error) {
-              console.error(`Error processing ${file.name}:`, error);
-              return null;
-            }
-          })
-        );
-
-        // Update metadata in database
-        const validMetadata = batchMetadata.filter(Boolean);
-        if (validMetadata.length > 0) {
-          const credentials = JSON.parse(localStorage.getItem('doCredentials') || '{}');
-
-          // First store metadata
-          const metadataResponse = await fetch('/api/metadata', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ metadata: validMetadata, credentials })
-          });
-
-          if (!metadataResponse.ok) {
-            throw new Error('Failed to store metadata');
-          }
-
-          const { pathToIds } = await metadataResponse.json();
-
-          // Then store embeddings
-          const embeddings: Record<number, number[]> = {};
-          for (const item of validMetadata) {
-            if (item?.embedding) {
-              embeddings[pathToIds[item.path]] = item.embedding;
-            }
-          }
-
-          if (Object.keys(embeddings).length > 0) {
-            const embeddingResponse = await fetch('/api/embeddings', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ embeddings, credentials })
-            });
-
-            if (!embeddingResponse.ok) {
-              throw new Error('Failed to store embeddings');
-            }
-          }
-        }
-
-        setStatus(prev => ({ ...prev, processed: prev.processed + batch.length }));
-      }
-    } catch (error) {
-      setStatus(prev => ({
-        ...prev,
-        error: error instanceof Error ? error.message : 'An error occurred'
-      }));
-    } finally {
-      setIsProcessing(false);
-      abortController.current = null;
-    }
-  };
 
   const handleDrop = useCallback(async (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(false);
 
-    const items = Array.from(e.dataTransfer.items);
-    const dirEntry = items[0]?.webkitGetAsEntry();
-
-    if (!dirEntry?.isDirectory) {
-      setStatus(prev => ({ ...prev, error: 'Please drop a directory' }));
-      return;
-    }
-
-    const files: File[] = [];
-    const dirName = dirEntry.name;
-
-    async function readEntries(entry: FileSystemDirectoryEntry): Promise<void> {
-      const reader = entry.createReader();
-      let entries: FileSystemEntry[] = [];
-
-      // Keep reading until no more entries are returned
-      do {
-        const newEntries = await new Promise<FileSystemEntry[]>((resolve) => {
-          reader.readEntries(resolve);
-        });
-
-        if (newEntries.length === 0) break;
-        entries = entries.concat(newEntries);
-      } while (true);
-
-      await Promise.all(entries.map(async (entry) => {
-        if (entry.isFile) {
-          const file = await new Promise<File>((resolve) => {
-            (entry as FileSystemFileEntry).file(resolve);
-          });
-          files.push(file);
-        } else if (entry.isDirectory) {
-          await readEntries(entry as FileSystemDirectoryEntry);
-        }
-      }));
-    }
-
-    await readEntries(dirEntry as FileSystemDirectoryEntry);
-    await processFiles(files, dirName);
+    processDataTransfer(e.dataTransfer, setStatus, abortController);
   }, []);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
@@ -342,7 +34,7 @@ export default function UploadPage() {
 
   const handleCancel = () => {
     abortController.current?.abort();
-    setIsProcessing(false);
+    setStatus(prev => ({ ...prev, isProcessing: false }));
   };
 
   const progress = status.total ? Math.round((status.processed / status.total) * 100) : 0;
@@ -360,16 +52,16 @@ export default function UploadPage() {
           className={`
           border-4 border-dashed rounded-lg p-12 text-center
           ${isDragging ? 'border-blue-500 bg-blue-50' : 'border-gray-300'}
-          ${isProcessing ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
+          ${status.isProcessing ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
         `}
         >
           <p className="text-lg text-gray-600">
-            {isProcessing ? 'Processing...' : 'Drop a directory here'}
+            {status.isProcessing ? 'Processing...' : 'Drop a directory here'}
           </p>
         </div>
 
         {/* Progress Section */}
-        {(isProcessing || status.processed > 0) && (
+        {(status.isProcessing || status.processed > 0) && (
           <div className="mt-8">
             <div className="mb-2 flex justify-between text-sm">
               <span>Progress: {status.processed} / {status.total}</span>
@@ -399,7 +91,7 @@ export default function UploadPage() {
         )}
 
         {/* Cancel Button */}
-        {isProcessing && (
+        {status.isProcessing && (
           <button
             onClick={handleCancel}
             className="mt-4 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
