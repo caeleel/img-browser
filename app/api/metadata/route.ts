@@ -91,3 +91,13 @@ export async function PUT(request: Request) {
   `, [...ids, ...entries.map((value) => value[1])]);
   return NextResponse.json({ count: rowCount });
 }
+
+export async function DELETE(request: Request) {
+  const { paths, credentials }: { paths: string[], credentials: S3Credentials } = await request.json();
+  if (!credentialsValid(credentials)) {
+    return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
+  }
+
+  await sql.query(`DELETE FROM image_metadata WHERE path IN (${paths.map((_, i) => `$${i + 1}`).join(', ')})`);
+  return NextResponse.json({ count: paths.length });
+}

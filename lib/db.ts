@@ -1,3 +1,4 @@
+import { deleteFile, getCredentials } from "./s3";
 import { ImageMetadata, S3Credentials } from "./types";
 
 // Client-side only
@@ -27,4 +28,17 @@ const SECRET_ACCESS_KEY = process.env.NEXT_PUBLIC_DO_SECRET_ACCESS_KEY || '';
 
 export async function credentialsValid(credentials: S3Credentials) {
   return credentials.accessKeyId === ACCESS_KEY_ID && credentials.secretAccessKey === SECRET_ACCESS_KEY;
+}
+
+export async function deleteFileWithMetadata(paths: string[]) {
+  const credentials = getCredentials();
+  const response = await fetch('/api/metadata', {
+    method: 'DELETE',
+    body: JSON.stringify({ paths, credentials })
+  });
+  if (response.ok) {
+    for (const path of paths) {
+      await deleteFile(path);
+    }
+  }
 }

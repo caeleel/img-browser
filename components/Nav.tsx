@@ -66,7 +66,7 @@ export default function Nav() {
         />
 
         {/* Nav items */}
-        {NAV_ITEMS.map(({ label, href }, index) => {
+        {NAV_ITEMS.map(({ label, href }) => {
           const isActive = pathname === href ||
             (href === '/' && pathname === '') ||
             (href !== '/' && pathname?.startsWith(href));

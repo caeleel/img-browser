@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import VideoPlayer from './VideoPlayer';
 import ImageViewer from './ImageViewer';
@@ -12,7 +12,7 @@ import { fetchMetadata } from '@/lib/db';
 import LoadingSpinner from './LoadingSpinner';
 import Header from './Header';
 import DragTarget from './DragTarget';
-import { processDataTransfer, UploadStatus } from '@/lib/upload';
+import { processDataTransfer } from '@/lib/upload';
 import { useSetAtom } from 'jotai';
 import { showFooterAtom } from '@/lib/atoms';
 const IMAGE_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.gif', '.webp'];

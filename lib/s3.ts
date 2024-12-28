@@ -1,4 +1,4 @@
-import { S3Client, GetObjectCommand, ListObjectsV2Command, PutObjectCommand } from '@aws-sdk/client-s3';
+import { S3Client, GetObjectCommand, ListObjectsV2Command, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { BucketItemWithBlob, S3Response } from './types';
 
@@ -119,6 +119,17 @@ export async function getSignedPutUrl(key: string, contentType: string): Promise
   });
 
   return getSignedUrl(s3Client, command, { expiresIn: 3600 });
+}
+
+export async function deleteFile(key: string): Promise<void> {
+  const s3Client = getS3Client();
+
+  const command = new DeleteObjectCommand({
+    Bucket: BUCKET_NAME,
+    Key: key,
+  });
+
+  await s3Client.send(command);
 }
 
 export async function uploadFile(key: string, file: Blob): Promise<void> {
