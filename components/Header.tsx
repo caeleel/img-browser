@@ -1,6 +1,5 @@
 import { logout } from "@/lib/utils";
 import { ChangeEventHandler, useEffect } from "react";
-import Nav from "./Nav";
 import { useRouter } from "next/navigation";
 
 export default function Header({ breadcrumbs, onLogout = logout, updatePath, search, onSearch }: {
