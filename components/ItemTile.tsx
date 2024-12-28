@@ -25,7 +25,7 @@ function ImageTile({ item, handleImageClick }: {
 
   if (!blobUrl) {
     return <div className="w-full h-48 flex items-center justify-center">
-      <LoadingSpinner size="small" light />
+      <LoadingSpinner />
     </div>
   }
 
