@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import VideoPlayer from './VideoPlayer';
 import ImageViewer from './ImageViewer';
@@ -11,6 +11,9 @@ import { ItemTile } from './ItemTile';
 import { fetchMetadata } from '@/lib/db';
 import LoadingSpinner from './LoadingSpinner';
 import Header from './Header';
+import DragTarget from './DragTarget';
+import Toast from './Toast';
+import { processDataTransfer, UploadStatus } from '@/lib/upload';
 const IMAGE_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.gif', '.webp'];
 const VIDEO_EXTENSIONS = ['.mp4', '.ts', '.mov'];
 
@@ -33,6 +36,10 @@ export default function BucketBrowser({ onLogout, credentials }: { onLogout: () 
   const selectedImage = viewerImageIndex !== null ? allImages[viewerImageIndex] : null;
   const totalPages = Math.ceil(allContents.length / PAGE_SIZE);
   const [generation, setGeneration] = useState(0);
+
+  const [isDragging, setIsDragging] = useState(false);
+  const [uploadStatus, setUploadStatus] = useState<UploadStatus | null>(null);
+  const abortController = useRef<AbortController | null>(null);
 
   const fetchAllImages = async (items: BucketItemWithBlob[]) => {
     const imageItems = items.filter(item => item.type === 'image' && !item.blobUrl);
@@ -239,44 +246,101 @@ export default function BucketBrowser({ onLogout, credentials }: { onLogout: () 
     }
   }, [searchParams, allContents]);
 
+  const handleDrop = useCallback(async (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+
+    // Only allow drops in photos directory
+    if (!currentPath.startsWith('photos/') && currentPath !== 'photos') {
+      return;
+    }
+
+    processDataTransfer(
+      e.dataTransfer,
+      (status) => setUploadStatus(status),
+      abortController,
+      currentPath
+    );
+  }, [currentPath]);
+
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+  }, []);
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    // Only set dragging false if we're leaving the container
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX;
+    const y = e.clientY;
+
+    if (
+      x <= rect.left ||
+      x >= rect.right ||
+      y <= rect.top ||
+      y >= rect.bottom
+    ) {
+      setIsDragging(false);
+    }
+  }, []);
+
   return (
     <div>
       <Header breadcrumbs={breadcrumbs} onLogout={onLogout} updatePath={updatePath} />
 
-      {loading ? (
-        <div className="h-screen w-screen">
-          <LoadingSpinner size="large" />
-        </div>
-      ) : contents.length === 0 ? (
-        <div className="flex flex-col flex-grow justify-center items-center">
-          <div className="text-center text-gray-600">
-            This directory is empty
+      <div
+        onDrop={handleDrop}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+      >
+        {isDragging && <DragTarget />}
+        {loading ? (
+          <div className="h-screen w-screen">
+            <LoadingSpinner size="large" />
           </div>
-        </div>
-      ) : (
-        <div className="pb-20 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 max-w-7xl p-8 mx-auto">
-          {contents.map((item) => (
-            <ItemTile
-              key={item.path}
-              item={item}
-              handleDirectoryClick={updatePath}
-              handleVideoClick={async () => {
-                try {
-                  setLoadingVideo(item.path);
-                  const url = await signedUrl(item);
-                  setSelectedVideo({ ...item, signedUrl: url });
-                } catch (error) {
-                  console.error('Failed to load video', error);
-                } finally {
-                  setLoadingVideo('');
-                }
-              }}
-              handleImageClick={(item) => setNextImage(allImages.findIndex(img => img.path === item.path))}
-              loadingVideo={loadingVideo}
-            />
-          ))}
-        </div>
-      )}
+        ) : contents.length === 0 ? (
+          <div className="flex flex-col flex-grow justify-center items-center">
+            <div className="text-center text-gray-600">
+              This directory is empty
+            </div>
+          </div>
+        ) : (
+          <div className="pb-20 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 max-w-7xl p-8 mx-auto">
+            {contents.map((item) => (
+              <ItemTile
+                key={item.path}
+                item={item}
+                handleDirectoryClick={updatePath}
+                handleVideoClick={async () => {
+                  try {
+                    setLoadingVideo(item.path);
+                    const url = await signedUrl(item);
+                    setSelectedVideo({ ...item, signedUrl: url });
+                  } catch (error) {
+                    console.error('Failed to load video', error);
+                  } finally {
+                    setLoadingVideo('');
+                  }
+                }}
+                handleImageClick={(item) => setNextImage(allImages.findIndex(img => img.path === item.path))}
+                loadingVideo={loadingVideo}
+              />
+            ))}
+          </div>
+        )}
+
+        {uploadStatus && (
+          <Toast
+            status={uploadStatus}
+            onCancel={() => {
+              abortController.current?.abort();
+              setUploadStatus(null);
+            }}
+            onDismiss={() => setUploadStatus(null)}
+            raised={totalPages > 1}
+          />
+        )}
+      </div>
 
       {totalPages > 1 && (
         <div className="fixed bottom-0 left-0 right-0 py-2 px-4 backdrop-blur-lg bg-white/50">

@@ -6,7 +6,6 @@ import Link from 'next/link';
 const NAV_ITEMS = [
   { label: 'Browse', href: '/' },
   { label: 'Search', href: '/search' },
-  { label: 'Upload', href: '/upload' },
 ];
 
 export default function Nav() {

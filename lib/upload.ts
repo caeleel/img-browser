@@ -286,6 +286,9 @@ export async function processDataTransfer(
   basePath = BASE_PATH
 ) {
   const items = Array.from(dataTransfer.items);
+  if (basePath.endsWith('/')) {
+    basePath = basePath.slice(0, -1);
+  }
 
   const files: { [path: string]: File } = {};
 
