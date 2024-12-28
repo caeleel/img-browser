@@ -36,7 +36,7 @@ export default function Header({ breadcrumbs, onLogout = logout, updatePath, sea
       <div className="flex w-full flex-row-reverse gap-4 items-center justify-between px-4 py-2">
         <button
           onClick={onLogout}
-          className="py-1 px-4 border border-black/30 rounded-full hover:bg-black/10 hover:text-black text-black/50 text-sm whitespace-nowrap"
+          className="py-1 px-4 bg-black rounded-full hover:bg-black/80 text-white text-sm whitespace-nowrap"
         >
           Sign out
         </button>

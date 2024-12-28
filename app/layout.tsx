@@ -2,9 +2,9 @@
 
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import { Provider } from 'jotai';
+import { Provider, useAtomValue } from 'jotai';
 import UploadToast from '@/components/UploadToast';
-import { globalStore } from "@/lib/atoms";
+import { globalStore, selectedItemsAtom, showFooterAtom } from "@/lib/atoms";
 import Nav from "@/components/Nav";
 
 const geistSans = Geist({
@@ -17,6 +17,18 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+function Toasts() {
+  const showFooter = useAtomValue(showFooterAtom);
+
+  return (
+    <div className={`fixed flex gap-2 z-50 left-4 ${showFooter ? 'bottom-16' : 'bottom-4'}`} style={{
+      transition: 'bottom 0.3s ease-in-out'
+    }}>
+      <UploadToast />
+    </div>
+  )
+}
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -26,13 +38,16 @@ export default function RootLayout({
     <html lang="en">
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        onClick={() => {
+          globalStore.set(selectedItemsAtom, {})
+        }}
       >
         <Provider store={globalStore}>
-          <div className="fixed top-0 z-50 flex justify-center left-0 right-0 pointer-events-none">
+          <div className="fixed top-0 z-40 flex justify-center left-0 right-0 pointer-events-none">
             <Nav />
           </div>
           {children}
-          <UploadToast />
+          <Toasts />
         </Provider>
       </body>
     </html>

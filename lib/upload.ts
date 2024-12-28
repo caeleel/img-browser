@@ -284,12 +284,14 @@ export async function processDataTransfer(
 ) {
   const store = globalStore;
 
-  const setStatus = (status: UploadStatus) => {
-    store.set(uploadStatusAtom, status);
-  };
-
   const abortController = new AbortController();
   store.set(abortControllerAtom, abortController);
+
+  const setStatus = (status: UploadStatus) => {
+    if (!abortController.signal.aborted) {
+      store.set(uploadStatusAtom, status);
+    }
+  };
 
   const items = Array.from(dataTransfer.items);
   if (basePath.endsWith('/')) {

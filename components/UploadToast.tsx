@@ -10,7 +10,6 @@ export default function UploadToast() {
   const [uploadStatus, setUploadStatus] = useAtom(uploadStatusAtom);
   const [abortController, setAbortController] = useAtom(abortControllerAtom);
   const [showConfirm, setShowConfirm] = useState(false);
-  const showFooter = useAtomValue(showFooterAtom);
 
   if (!uploadStatus) return null;
 
@@ -35,53 +34,49 @@ export default function UploadToast() {
 
   return (
     <>
-      <div className={`fixed left-4 bg-white/70 backdrop-blur-lg rounded-lg shadow-[0_4px_10px_rgba(0,0,0,0.1)] p-4 w-80 ${showFooter ? 'bottom-16' : 'bottom-4'}`} style={{
-        transition: 'bottom 0.3s ease-in-out'
-      }}>
-        <div className="flex items-center gap-4">
-          <div className="flex-1 ml-1">
-            <div className="flex justify-between text-sm mb-2">
-              <div className="flex items-center gap-2">
-                {uploadStatus.isProcessing && <div><LoadingSpinner size={"small"} /></div>}
-                <div>{uploadStatus.processed} / {uploadStatus.total}</div>
-              </div>
-              <div className="text-black/50">{progress}%</div>
+      <div className="flex items-center gap-4 bg-white/70 backdrop-blur-lg rounded-lg shadow-[0_4px_10px_rgba(0,0,0,0.1)] p-4 w-80 ">
+        <div className="flex-1 ml-1">
+          <div className="flex justify-between text-sm mb-2">
+            <div className="flex items-center gap-2">
+              {uploadStatus.isProcessing && <div><LoadingSpinner size={"small"} /></div>}
+              <div>{uploadStatus.processed} / {uploadStatus.total}</div>
             </div>
-            <div className="w-full bg-black/5 rounded-full h-1.5">
-              <div
-                className={`h-1.5 rounded-full transition-all duration-300 ${uploadStatus.error ? 'bg-red-500' : isComplete ? 'bg-green-500' : 'bg-black/30'}`}
-                style={{ width: `${progress}%` }}
-              />
-            </div>
+            <div className="text-black/50">{progress}%</div>
           </div>
-          <button onClick={handleClose} className="hover:bg-black/5 rounded p-1">
-            <CloseIcon color="black" />
-          </button>
+          <div className="w-full bg-black/5 rounded-full h-1.5">
+            <div
+              className={`h-1.5 rounded-full transition-all duration-300 ${uploadStatus.error ? 'bg-red-500' : isComplete ? 'bg-green-500' : 'bg-black/30'}`}
+              style={{ width: `${progress}%` }}
+            />
+          </div>
         </div>
-
-        {uploadStatus.error && (
-          <div className="mt-2 text-sm text-red-600">
-            {uploadStatus.error}
-          </div>
-        )}
+        <button onClick={handleClose} className="hover:bg-black/5 rounded p-1">
+          <CloseIcon color="black" />
+        </button>
       </div>
+
+      {uploadStatus.error && (
+        <div className="mt-2 text-sm text-red-600">
+          {uploadStatus.error}
+        </div>
+      )}
 
       {showConfirm && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-white/70 backdrop-blur-lg rounded-lg p-6 max-w-sm">
-            <p className="text-black/50 mb-6">
+            <p className="text-black/50 mb-6 text-sm">
               Are you sure you want to cancel the upload?
             </p>
             <div className="flex justify-end gap-2">
               <button
                 onClick={() => setShowConfirm(false)}
-                className="px-4 py-2 text-sm hover:bg-black/5 rounded-full"
+                className="px-4 py-1 text-sm hover:bg-black/5 rounded-full"
               >
                 Continue Upload
               </button>
               <button
                 onClick={handleCancel}
-                className="px-4 py-2 text-sm bg-red-500/50 backdrop-blur-lg text-white rounded-full hover:bg-red-600/50"
+                className="px-4 py-1 text-sm bg-red-500 text-white rounded-full hover:bg-red-600"
               >
                 Cancel Upload
               </button>

@@ -1,32 +1,28 @@
 import { BucketItemWithBlob } from "@/lib/types";
 import { getCssOrientation } from "@/lib/utils";
 import LoadingSpinner from "./LoadingSpinner";
+import { useAtom } from "jotai";
+import { selectedItemsAtom } from "@/lib/atoms";
+import { useEffect } from "react";
 
-function DirectoryTile({ item, handleDirectoryClick }: {
+function DirectoryTile({ item }: {
   item: BucketItemWithBlob,
-  handleDirectoryClick: (path: string) => void
 }) {
-  return <button
-    onClick={() => handleDirectoryClick(item.path)}
-    className="w-full h-48 flex hover:border-black border-4 border-white bg-black/5 overflow-hidden items-center justify-center"
-  >
+  return (
     <div className="p-4 text-left text-black/50 text-sm">
       📁 {item.name}
     </div>
-  </button>
+  )
 }
 
-function ImageTile({ item, handleImageClick }: {
+function ImageTile({ item }: {
   item: BucketItemWithBlob,
-  handleImageClick: (item: BucketItemWithBlob) => void
 }) {
   const blobUrl = item.thumbnailBlobUrl || item.blobUrl
   const { metadata } = item
 
   if (!blobUrl) {
-    return <div className="w-full h-48 flex items-center justify-center">
-      <LoadingSpinner />
-    </div>
+    return <LoadingSpinner />
   }
 
   let rotation = ''
@@ -35,36 +31,27 @@ function ImageTile({ item, handleImageClick }: {
   }
 
   return (
-    <div className="relative group bg-black/5 overflow-hidden border-4 border-white hover:border-black">
-      <img
-        src={blobUrl}
-        alt={item.name}
-        className={`w-full h-48 object-cover cursor-pointer ${rotation}`}
-        onClick={() => handleImageClick(item)}
-      />
-    </div>
+    <img
+      src={blobUrl}
+      alt={item.name}
+      className={`w-full h-48 object-cover ${rotation}`}
+    />
   );
 }
 
-function VideoTile({ item, loadingVideo, handleVideoClick }: {
+function VideoTile({ item, loadingVideo }: {
   item: BucketItemWithBlob,
   loadingVideo: string,
-  handleVideoClick: (item: BucketItemWithBlob) => void
 }) {
   if (loadingVideo === item.path) {
-    return <div className="w-full h-48 flex items-center justify-center">
-      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-500"></div>
-    </div>
+    return <LoadingSpinner />
   }
 
-  return <button
-    onClick={() => handleVideoClick(item)}
-    className="w-full h-48 flex bg-black/5 hover:border-black border-4 border-white overflow-hidden items-center justify-center"
-  >
+  return (
     <div className="p-4 text-left text-sm text-black/50">
       🎥 {item.name}
     </div>
-  </button >
+  )
 }
 
 export function ItemTile({ item, handleDirectoryClick, handleVideoClick, handleImageClick, loadingVideo }: {
@@ -74,24 +61,74 @@ export function ItemTile({ item, handleDirectoryClick, handleVideoClick, handleI
   handleImageClick: (item: BucketItemWithBlob) => void,
   loadingVideo: string
 }) {
-  switch (item.type) {
-    case 'directory':
-      return <DirectoryTile
-        item={item}
-        handleDirectoryClick={handleDirectoryClick}
-      />
-    case 'image':
-      return <ImageTile
-        item={item}
-        handleImageClick={handleImageClick}
-      />
-    case 'video':
-      return <VideoTile
-        item={item}
-        loadingVideo={loadingVideo}
-        handleVideoClick={handleVideoClick}
-      />
-    default:
-      return null
+  const [selectedItems, setSelectedItems] = useAtom(selectedItemsAtom)
+  const isSelected = selectedItems[item.path] !== undefined
+
+  useEffect(() => {
+    return () => {
+      setSelectedItems(prev => {
+        const { [item.path]: _, ...rest } = prev
+        return rest
+      })
+    }
+  }, [item])
+
+  const handleClick = (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.stopPropagation()
+    if (e.detail === 2) {
+      switch (item.type) {
+        case 'directory':
+          handleDirectoryClick(item.path)
+          break
+        case 'image':
+          handleImageClick(item)
+          break
+        case 'video':
+          handleVideoClick(item)
+          break
+      }
+
+      return
+    }
+
+    if (e.shiftKey) {
+      if (isSelected) {
+        setSelectedItems(prev => {
+          const { [item.path]: _, ...rest } = prev
+          return rest
+        })
+      } else {
+        setSelectedItems(prev => ({ ...prev, [item.path]: item }))
+      }
+    } else {
+      setSelectedItems({ [item.path]: item })
+    }
   }
+
+  const innerTile = () => {
+    switch (item.type) {
+      case 'directory':
+        return <DirectoryTile
+          item={item}
+        />
+      case 'image':
+        return <ImageTile
+          item={item}
+        />
+      case 'video':
+        return <VideoTile
+          item={item}
+          loadingVideo={loadingVideo}
+        />
+      default:
+        return null
+    }
+  }
+
+  return <button
+    onClick={handleClick}
+    className={`w-full h-48 cursor-default flex items-center bg-black/5 hover:border-black border-4 justify-center ${isSelected ? 'border-black' : 'border-white'} overflow-hidden`}
+  >
+    {innerTile()}
+  </button>
 }
