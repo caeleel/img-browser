@@ -39,13 +39,13 @@ export default function UploadToast() {
         transition: 'bottom 0.3s ease-in-out'
       }}>
         <div className="flex items-center gap-4">
-          <div className="flex-1">
-            <div className="flex justify-between text-sm mb-1">
+          <div className="flex-1 ml-1">
+            <div className="flex justify-between text-sm mb-2">
               <div className="flex items-center gap-2">
                 {uploadStatus.isProcessing && <div><LoadingSpinner size={"small"} /></div>}
                 <div>{uploadStatus.processed} / {uploadStatus.total}</div>
               </div>
-              <div className="text-black/50 text-xs">{progress}%</div>
+              <div className="text-black/50">{progress}%</div>
             </div>
             <div className="w-full bg-black/5 rounded-full h-1.5">
               <div

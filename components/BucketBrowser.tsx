@@ -252,21 +252,23 @@ export default function BucketBrowser({ onLogout, credentials }: { onLogout: () 
   }, [searchParams, allContents]);
 
   const handleDrop = useCallback(async (e: React.DragEvent) => {
+    if (!isDragging) return;
+
     e.preventDefault();
     setIsDragging(false);
-
-    // Only allow drops in photos directory
-    if (!currentPath.startsWith('photos/') && currentPath !== 'photos') {
-      return;
-    }
 
     processDataTransfer(
       e.dataTransfer,
       currentPath
     );
-  }, [currentPath]);
+  }, [currentPath, isDragging]);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
+    // Only allow drops in photos directory
+    if (!currentPath.startsWith('photos/') && currentPath !== 'photos') {
+      return;
+    }
+
     e.preventDefault();
     setIsDragging(true);
   }, []);
