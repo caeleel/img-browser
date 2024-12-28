@@ -72,6 +72,8 @@ function SearchPageInner() {
   }, [searchParams, router]);
 
   const performSearch = async (searchQuery: string) => {
+    updateUrl(searchQuery);
+
     if (!searchQuery.trim()) {
       setItems([]);
       return;
@@ -119,8 +121,6 @@ function SearchPageInner() {
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setIsLoading(true);
-    console.log('search', e.target.value);
-    updateUrl(e.target.value);
     const newQuery = e.target.value;
     setQuery(newQuery);
     debouncedSearch(newQuery);

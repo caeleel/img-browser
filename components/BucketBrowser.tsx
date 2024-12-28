@@ -12,8 +12,9 @@ import { fetchMetadata } from '@/lib/db';
 import LoadingSpinner from './LoadingSpinner';
 import Header from './Header';
 import DragTarget from './DragTarget';
-import Toast from './Toast';
 import { processDataTransfer, UploadStatus } from '@/lib/upload';
+import { useSetAtom } from 'jotai';
+import { showFooterAtom } from '@/lib/atoms';
 const IMAGE_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.gif', '.webp'];
 const VIDEO_EXTENSIONS = ['.mp4', '.ts', '.mov'];
 
@@ -38,8 +39,7 @@ export default function BucketBrowser({ onLogout, credentials }: { onLogout: () 
   const [generation, setGeneration] = useState(0);
 
   const [isDragging, setIsDragging] = useState(false);
-  const [uploadStatus, setUploadStatus] = useState<UploadStatus | null>(null);
-  const abortController = useRef<AbortController | null>(null);
+  const setShowFooter = useSetAtom(showFooterAtom);
 
   const fetchAllImages = async (items: BucketItemWithBlob[]) => {
     const imageItems = items.filter(item => item.type === 'image' && !item.blobUrl);
@@ -180,6 +180,11 @@ export default function BucketBrowser({ onLogout, credentials }: { onLogout: () 
     }
   }, [searchParams]);
 
+  useEffect(() => {
+    setShowFooter(totalPages > 1);
+    return () => setShowFooter(false);
+  }, [totalPages]);
+
   const breadcrumbs = [
     { name: 'root', path: '' },
     ...currentPath.split('/').filter(Boolean).map((part, index, array) => ({
@@ -257,8 +262,6 @@ export default function BucketBrowser({ onLogout, credentials }: { onLogout: () 
 
     processDataTransfer(
       e.dataTransfer,
-      (status) => setUploadStatus(status),
-      abortController,
       currentPath
     );
   }, [currentPath]);
@@ -327,18 +330,6 @@ export default function BucketBrowser({ onLogout, credentials }: { onLogout: () 
               />
             ))}
           </div>
-        )}
-
-        {uploadStatus && (
-          <Toast
-            status={uploadStatus}
-            onCancel={() => {
-              abortController.current?.abort();
-              setUploadStatus(null);
-            }}
-            onDismiss={() => setUploadStatus(null)}
-            raised={totalPages > 1}
-          />
         )}
       </div>
 

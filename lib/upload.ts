@@ -1,6 +1,7 @@
 import { getCredentials, uploadFile } from "./s3";
 import exifr from "exifr";
 import { getImageEmbedding } from "./embeddings";
+import { uploadStatusAtom, abortControllerAtom, globalStore } from './atoms';
 
 let heic2any: (options: {
   blob: Blob;
@@ -116,7 +117,7 @@ async function convertHeicToJpeg(file: File): Promise<File> {
 async function processFiles(
   fileMap: { [path: string]: File },
   setStatus: (status: UploadStatus) => void,
-  abortController: { current: AbortController | null }
+  abortController: AbortController
 ) {
   const files: { [path: string]: File } = {};
   for (const path in fileMap) {
@@ -137,11 +138,10 @@ async function processFiles(
 
   setStatus({ ...status });
   const credentials = getCredentials();
-  abortController.current = new AbortController();
 
   try {
     for (let i = 0; i < imagePaths.length; i += BATCH_SIZE) {
-      if (abortController.current?.signal.aborted) {
+      if (abortController.signal.aborted) {
         break;
       }
 
@@ -275,16 +275,22 @@ async function processFiles(
   } finally {
     status.isProcessing = false;
     setStatus({ ...status });
-    abortController.current = null;
   }
 };
 
 export async function processDataTransfer(
   dataTransfer: DataTransfer,
-  setStatus: (status: UploadStatus) => void,
-  abortController: { current: AbortController | null },
   basePath = BASE_PATH
 ) {
+  const store = globalStore;
+
+  const setStatus = (status: UploadStatus) => {
+    store.set(uploadStatusAtom, status);
+  };
+
+  const abortController = new AbortController();
+  store.set(abortControllerAtom, abortController);
+
   const items = Array.from(dataTransfer.items);
   if (basePath.endsWith('/')) {
     basePath = basePath.slice(0, -1);

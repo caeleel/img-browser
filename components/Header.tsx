@@ -32,12 +32,7 @@ export default function Header({ breadcrumbs, onLogout = logout, updatePath, sea
   }, [onSearch, router])
 
   return (
-    <div className="sticky top-0 z-10 backdrop-blur-lg bg-neutral-100/50 border-b border-black/5">
-      {/* Navigation - shows above on small screens */}
-      <div className="lg:hidden flex justify-center py-0.5">
-        <Nav />
-      </div>
-
+    <div className="sticky top-8 lg:top-0 z-10 backdrop-blur-lg bg-neutral-100/50 border-b border-black/5">
       {/* Main header content */}
       <div className="flex w-full flex-row-reverse gap-4 items-center justify-between px-4 py-2">
         <button
@@ -63,11 +58,6 @@ export default function Header({ breadcrumbs, onLogout = logout, updatePath, sea
             ))}
           </div>
         )}
-
-        {/* Center navigation - hidden on small screens */}
-        <div className="absolute pointer-events-none left-0 right-0 top-0 hidden lg:flex flex-1 justify-center">
-          <Nav />
-        </div>
 
         {search !== undefined && onSearch !== undefined && (
           <div className="relative">
