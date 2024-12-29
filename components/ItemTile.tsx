@@ -35,7 +35,7 @@ function ImageTile({ item }: {
       <img
         src={blobUrl}
         alt={item.name}
-        className={`w-full h-48 object-cover ${rotation}`}
+        className={`w-full h-64 object-cover ${rotation}`}
       />
       {item.metadata?.similarity && (
         <div className="absolute top-1 right-1 hidden group-hover:flex">
@@ -138,7 +138,7 @@ export function ItemTile({ item, handleDirectoryClick, handleVideoClick, handleI
 
   return <button
     onClick={handleClick}
-    className={`w-full h-48 relative cursor-default flex items-center bg-black/5 hover:border-black border-4 justify-center ${isSelected ? 'border-black' : 'border-white'} overflow-hidden group`}
+    className={`w-full h-64 relative cursor-default flex items-center bg-black/5 hover:border-black border-4 justify-center ${isSelected ? 'border-black' : 'border-white'} overflow-hidden group`}
   >
     {innerTile()}
   </button>
