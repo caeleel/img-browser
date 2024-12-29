@@ -7,30 +7,26 @@ import TrashIcon from "./icons/TrashIcon";
 import { deleteFileWithMetadata } from '@/lib/db';
 import LoadingSpinner from './LoadingSpinner';
 
-export default function SelectedItemsToast() {
+export default function SelectedItemsUI() {
   const [selectedItems, setSelectedItems] = useAtom(selectedItemsAtom);
   const [showConfirm, setShowConfirm] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [allContents, setAllContents] = useAtom(allContentsAtom);
 
   // Filter to only images
   const selectedImages = Object.values(selectedItems).filter(item => item.type === 'image');
-  if (selectedImages.length === 0) return null;
+  const isShown = selectedImages.length > 0;
 
   const handleDelete = async (e: React.MouseEvent<HTMLButtonElement>) => {
     e.stopPropagation();
-    setError(null);
     setIsDeleting(true);
+    if (!isShown) return;
 
     try {
       const paths = selectedImages.map(item => item.path);
       await deleteFileWithMetadata(paths);
       setSelectedItems({});
       setAllContents(allContents.filter(item => !paths.includes(item.path)));
-      setShowConfirm(false);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to delete items');
       setShowConfirm(false);
     } finally {
       setIsDeleting(false);
@@ -39,28 +35,22 @@ export default function SelectedItemsToast() {
 
   return (
     <>
-      <div className="flex items-center gap-4 bg-white/70 backdrop-blur-lg rounded-lg shadow-[0_4px_10px_rgba(0,0,0,0.1)] p-4">
-        <div className="text-sm">
-          {error ? (
-            <span className="text-red-500">{error}</span>
-          ) : (
-            <span className="text-black/70">
-              {selectedImages.length} item{selectedImages.length !== 1 ? 's' : ''} selected
-            </span>
-          )}
+      <div className={`fixed flex justify-center items-center gap-4 pointer-events-none left-0 right-0 p-1.5 z-20 ${isShown ? 'top-0' : '-top-12'}`} style={{
+        transition: 'top 0.3s ease-in-out'
+      }}>
+        <div className="bg-neutral-100/50 shadow-inner backdrop-blur-lg rounded-full p-0.5 pointer-events-auto w-[168px] h-9 flex items-center justify-around">
+          <button
+            onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
+              e.stopPropagation();
+              setShowConfirm(true);
+            }}
+            className="p-0.5 hover:bg-black/5 rounded-full"
+            title="Delete selected items"
+            disabled={isDeleting}
+          >
+            <TrashIcon />
+          </button>
         </div>
-        <div className="h-4 w-px bg-black/10" />
-        <button
-          onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
-            e.stopPropagation();
-            setShowConfirm(true);
-          }}
-          className="p-1 hover:bg-black/5 rounded"
-          title="Delete selected items"
-          disabled={isDeleting}
-        >
-          <TrashIcon />
-        </button>
       </div>
 
       {showConfirm && (

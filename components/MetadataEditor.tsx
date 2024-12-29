@@ -179,7 +179,6 @@ export function MetadataEditor({ metadata, credentials, editing, setEditing, sho
     return <EditableField field={field} value={format(value || '')} label={label} handleSave={handleSave} />;
   }
 
-  console.log(metadata?.latitude, metadata?.longitude);
   return <div className={`z-10 w-64 backdrop-blur-lg text-white overflow-y-auto rounded-lg absolute top-12 mt-1 shadow-lg ${showFilmstrip ? 'right-2' : '-right-64'}`} style={{
     background: 'linear-gradient(to bottom, rgba(0, 0, 0, 0.8) 0%, rgba(0, 0, 0, 0.7) 30%)',
     transition: 'right 0.3s ease-in-out'

@@ -31,7 +31,7 @@ export default function Header({ breadcrumbs, onLogout = logout, updatePath, sea
   }, [onSearch, router])
 
   return (
-    <div className="fixed left-0 right-0 top-10 lg:top-0 z-40 pointer-events-none h-12">
+    <div className="fixed left-0 right-0 top-10 lg:top-0 z-10 pointer-events-none h-12">
       {/* Main header content */}
       <div className="flex w-full flex-row-reverse gap-4 items-center justify-between px-4 h-full">
         <button

@@ -301,6 +301,13 @@ export default function BucketBrowser({ onLogout, credentials }: { onLogout: () 
         onDrop={handleDrop}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
+        onClick={(e) => {
+          if (e.shiftKey) {
+            e.preventDefault()
+            return
+          }
+          setSelectedItems({})
+        }}
       >
         {isDragging && <DragTarget />}
         {loading ? (

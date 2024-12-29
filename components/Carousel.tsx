@@ -27,7 +27,7 @@ export default function Carousel({ images, shown, onSelectImage }: {
             <button
               key={img?.path || i}
               onClick={() => img ? onSelectImage(img) : null}
-              className={`h-24 w-24 flex-shrink-0 box-border bg-white/5 transition-none flex justify-center duration-200  ${i === 4 ? 'ring-2 ring-white' : ''
+              className={`h-24 w-24 flex-shrink-0 box-border bg-white/5 transition-none flex justify-center duration-200  ${i === 4 ? 'ring-4 ring-black' : ''
                 } ${rotation}`}
             >
               {blobUrl ? (
