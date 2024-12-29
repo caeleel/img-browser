@@ -1,7 +1,7 @@
 'use client';
 
-import { useAtom, useAtomValue } from 'jotai';
-import { uploadStatusAtom, abortControllerAtom, showFooterAtom } from '@/lib/atoms';
+import { useAtom } from 'jotai';
+import { uploadStatusAtom, abortControllerAtom } from '@/lib/atoms';
 import { useState } from "react";
 import LoadingSpinner from "./LoadingSpinner";
 import CloseIcon from "./icons/CloseIcon";

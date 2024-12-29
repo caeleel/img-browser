@@ -53,7 +53,7 @@ export default function Nav() {
   }, [pathname, isInitial]);
 
   return (
-    <div className="px-1 py-1 my-[5px] bg-black/5 rounded-full shadow-inner pointer-events-auto">
+    <div className="px-1 py-1 my-[5px] bg-black/5 h-9 rounded-full shadow-inner pointer-events-auto z-50">
       <div ref={navRef} className="flex gap-1 relative">
         {/* Animated pill background */}
         <div

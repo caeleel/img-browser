@@ -67,6 +67,7 @@ export function ItemTile({ item, handleDirectoryClick, handleVideoClick, handleI
   useEffect(() => {
     return () => {
       setSelectedItems(prev => {
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const { [item.path]: _, ...rest } = prev
         return rest
       })
@@ -94,6 +95,7 @@ export function ItemTile({ item, handleDirectoryClick, handleVideoClick, handleI
     if (e.shiftKey) {
       if (isSelected) {
         setSelectedItems(prev => {
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
           const { [item.path]: _, ...rest } = prev
           return rest
         })

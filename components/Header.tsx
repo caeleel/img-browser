@@ -31,19 +31,19 @@ export default function Header({ breadcrumbs, onLogout = logout, updatePath, sea
   }, [onSearch, router])
 
   return (
-    <div className="sticky top-8 lg:top-0 z-10 backdrop-blur-lg bg-neutral-100/50 border-b border-black/5">
+    <div className="fixed left-0 right-0 top-10 lg:top-0 z-40 pointer-events-none h-12">
       {/* Main header content */}
-      <div className="flex w-full flex-row-reverse gap-4 items-center justify-between px-4 py-2">
+      <div className="flex w-full flex-row-reverse gap-4 items-center justify-between px-4 h-full">
         <button
           onClick={onLogout}
-          className="py-1 px-4 bg-black rounded-full hover:bg-black/80 text-white text-sm whitespace-nowrap"
+          className="pointer-events-auto py-1 px-4 bg-black rounded-full hover:bg-black/80 text-white text-sm whitespace-nowrap"
         >
           Sign out
         </button>
 
         {/* Left section */}
         {breadcrumbs !== undefined && updatePath !== undefined && (
-          <div className="flex items-center flex-wrap text-black/50 text-sm">
+          <div className="flex items-center flex-wrap text-black/50 text-sm pointer-events-auto">
             {breadcrumbs.map((crumb, index) => (
               <div key={crumb.path} className="flex items-center">
                 {index > 0 && <span className="mx-3 text-sm">/</span>}
@@ -59,7 +59,7 @@ export default function Header({ breadcrumbs, onLogout = logout, updatePath, sea
         )}
 
         {search !== undefined && onSearch !== undefined && (
-          <div className="relative">
+          <div className="relative pointer-events-auto">
             <div className="absolute left-2 top-[7px]">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path d="M14.5707 14.5C15.4548 13.5981 16 12.3627 16 11C16 8.23858 13.7614 6 11 6C8.23858 6 6 8.23858 6 11C6 13.7614 8.23858 16 11 16C12.3987 16 13.6633 15.4257 14.5707 14.5ZM14.5707 14.5L19.0707 19" stroke="rgba(0, 0, 0, 0.3)" strokeWidth="2" />

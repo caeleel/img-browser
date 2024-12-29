@@ -6,6 +6,7 @@ import { Provider, useAtomValue } from 'jotai';
 import UploadToast from '@/components/UploadToast';
 import { globalStore, selectedItemsAtom, showFooterAtom } from "@/lib/atoms";
 import Nav from "@/components/Nav";
+import SelectedItemsToast from '@/components/SelectedItemsToast';
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -25,8 +26,9 @@ function Toasts() {
       transition: 'bottom 0.3s ease-in-out'
     }}>
       <UploadToast />
+      <SelectedItemsToast />
     </div>
-  )
+  );
 }
 
 export default function RootLayout({
@@ -43,7 +45,7 @@ export default function RootLayout({
         }}
       >
         <Provider store={globalStore}>
-          <div className="fixed top-0 z-40 flex justify-center left-0 right-0 pointer-events-none">
+          <div className="sticky top-0 z-40 flex justify-center left-0 right-0 pointer-events-none bg-neutral-100/50 backdrop-blur-lg h-[84px] lg:h-[47px] border-b border-black/5">
             <Nav />
           </div>
           {children}
