@@ -22,7 +22,7 @@ function Toasts() {
   const showFooter = useAtomValue(showFooterAtom);
 
   return (
-    <div className={`fixed flex gap-2 z-50 left-4 ${showFooter ? 'bottom-16' : 'bottom-4'}`} style={{
+    <div className={`fixed flex gap-2 z-30 left-4 ${showFooter ? 'bottom-16' : 'bottom-4'}`} style={{
       transition: 'bottom 0.3s ease-in-out'
     }}>
       <UploadToast />
@@ -41,6 +41,7 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
         onClick={() => {
+          console.log('clicked')
           globalStore.set(selectedItemsAtom, {})
         }}
       >

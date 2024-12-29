@@ -38,7 +38,9 @@ export async function deleteFileWithMetadata(paths: string[]) {
   });
   if (response.ok) {
     for (const path of paths) {
-      await deleteFile(path);
+      await deleteFile(path)
     }
+  } else {
+    throw new Error('Error erasing file from DB')
   }
 }

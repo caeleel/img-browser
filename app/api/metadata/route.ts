@@ -98,6 +98,6 @@ export async function DELETE(request: Request) {
     return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
   }
 
-  await sql.query(`DELETE FROM image_metadata WHERE path IN (${paths.map((_, i) => `$${i + 1}`).join(', ')})`);
+  await sql.query(`DELETE FROM image_metadata WHERE path IN (${paths.map((_, i) => `$${i + 1}`).join(', ')})`, paths);
   return NextResponse.json({ count: paths.length });
 }

@@ -13,8 +13,8 @@ import LoadingSpinner from './LoadingSpinner';
 import Header from './Header';
 import DragTarget from './DragTarget';
 import { processDataTransfer } from '@/lib/upload';
-import { useSetAtom } from 'jotai';
-import { showFooterAtom } from '@/lib/atoms';
+import { useSetAtom, useAtom } from 'jotai';
+import { allContentsAtom, showFooterAtom, selectedItemsAtom } from '@/lib/atoms';
 const IMAGE_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.gif', '.webp'];
 const VIDEO_EXTENSIONS = ['.mp4', '.ts', '.mov'];
 
@@ -24,7 +24,7 @@ export default function BucketBrowser({ onLogout, credentials }: { onLogout: () 
   const router = useRouter();
   const searchParams = useSearchParams();
   const [currentPath, setCurrentPath] = useState(searchParams.get('path') || '');
-  const [allContents, setAllContents] = useState<BucketItemWithBlob[]>([]);
+  const [allContents, setAllContents] = useAtom<BucketItemWithBlob[]>(allContentsAtom);
   const [contents, setContents] = useState<BucketItemWithBlob[]>([]);
   const [selectedVideo, setSelectedVideo] = useState<BucketItem | null>(null);
   const [loadingVideo, setLoadingVideo] = useState('');
@@ -40,6 +40,11 @@ export default function BucketBrowser({ onLogout, credentials }: { onLogout: () 
 
   const [isDragging, setIsDragging] = useState(false);
   const setShowFooter = useSetAtom(showFooterAtom);
+  const setSelectedItems = useSetAtom(selectedItemsAtom);
+
+  useEffect(() => {
+    updateCurrentPageContents(currentPage, allContents);
+  }, [allContents, currentPage]);
 
   const fetchAllImages = async (items: BucketItemWithBlob[]) => {
     const imageItems = items.filter(item => item.type === 'image' && !item.blobUrl);
@@ -127,7 +132,6 @@ export default function BucketBrowser({ onLogout, credentials }: { onLogout: () 
       } while (continuationToken);
 
       setAllContents(allItems);
-      updateCurrentPageContents(currentPage, allItems);
     } catch (error) {
       console.error('Error fetching contents:', error);
       alert('Error fetching bucket contents');
@@ -148,11 +152,11 @@ export default function BucketBrowser({ onLogout, credentials }: { onLogout: () 
     if (page === currentPage) return;
     setCurrentPage(page);
     updateUrl(undefined, page);
-    await updateCurrentPageContents(page);
   };
 
   const setNextImage = (index: number | null) => {
     setViewerImageIndex(index);
+    setSelectedItems({});
     updateUrl(undefined, undefined, index !== null ? allImages[index].path : '');
   }
 
