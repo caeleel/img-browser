@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react';
 import Login from '../components/Login';
 import BucketBrowser from '../components/BucketBrowser';
 import { clearS3Cache } from '@/lib/s3';
+import FullscreenContainer from '@/components/FullscreenContainer';
+import LoadingSpinner from '@/components/LoadingSpinner';
 
 export default function Home() {
   const [credentials, setCredentials] = useState<{
@@ -33,11 +35,9 @@ export default function Home() {
   };
 
   if (loading) {
-    return <div className="min-h-screen bg-white">
-      <div className="flex justify-center items-center h-full">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-500"></div>
-      </div>
-    </div>
+    return <FullscreenContainer>
+      <LoadingSpinner size="large" />
+    </FullscreenContainer>
   }
 
   return (
@@ -45,10 +45,7 @@ export default function Home() {
       {!credentials ? (
         <Login onLogin={handleLogin} />
       ) : (
-        <BucketBrowser
-          onLogout={handleLogout}
-          credentials={credentials}
-        />
+        <BucketBrowser onLogout={handleLogout} />
       )}
     </div>
   );

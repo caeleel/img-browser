@@ -119,7 +119,7 @@ export default function ImageViewer({
               // use exif data to populate metadata
               const exifData = await exifr.parse(blobUrl);
               img.metadata = {
-                id: image.path,
+                id: 0,
                 path: image.path,
                 name: image.name,
                 latitude: exifData.gpsLatitude,
@@ -327,7 +327,7 @@ export default function ImageViewer({
           </>
         ) : (
           <div className="flex-1">
-            <LoadingSpinner size="small" light />
+            <LoadingSpinner size="large" />
           </div>
         )}
       </div>

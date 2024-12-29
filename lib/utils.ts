@@ -1,5 +1,5 @@
 import router from "next/router";
-import { clearS3Cache, signedUrl } from "./s3";
+import { clearS3Cache, getCredentials, signedUrl } from "./s3";
 
 export function blur(e: KeyboardEvent) {
   // eslint-disable-next-line @typescript-eslint/no-unused-expressions
@@ -17,11 +17,43 @@ export function getCssOrientation(orientation: number) {
 
 export function getThumbnailUrl(path: string) {
   const thumbnailPath = path.replace('photos', 'thumbnails');
-  return signedUrl({ path: thumbnailPath });
+  return signedUrl(thumbnailPath);
 }
 
 export function logout() {
   localStorage.removeItem('doCredentials');
   clearS3Cache();
   router.push('/');
+}
+
+interface Favorite {
+  id: number
+  created_at: string
+  image_id: number
+}
+
+export async function getFavorites(): Promise<Favorite[]> {
+  const credentials = getCredentials();
+  const response = await fetch('/api/favorites', {
+    headers: {
+      'X-DO-ACCESS-KEY-ID': credentials.accessKeyId,
+      'X-DO-SECRET-ACCESS-KEY': credentials.secretAccessKey,
+    },
+  });
+  return response.json();
+}
+
+export async function toggleFavorites(ids: number[], favorite: boolean) {
+  const credentials = getCredentials();
+  if (favorite) {
+    return (await fetch('/api/favorites', {
+      method: 'POST',
+      body: JSON.stringify({ ids, credentials }),
+    })).ok;
+  } else {
+    return (await fetch('/api/favorites', {
+      method: 'DELETE',
+      body: JSON.stringify({ ids, credentials }),
+    })).ok;
+  }
 }

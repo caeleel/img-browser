@@ -97,12 +97,12 @@ export async function listContents(path: string, continuationToken?: string): Pr
   };
 }
 
-export async function signedUrl(item: { path: string }): Promise<string> {
+export async function signedUrl(key: string): Promise<string> {
   const s3Client = getS3Client();
 
   const command = new GetObjectCommand({
     Bucket: BUCKET_NAME,
-    Key: item.path,
+    Key: key,
   });
 
   // URL expires in 1 hour

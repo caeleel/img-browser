@@ -1,90 +1,25 @@
 'use client';
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import VideoPlayer from './VideoPlayer';
-import ImageViewer from './ImageViewer';
-import PageSwitcher from './PageSwitcher';
-import { fetchFile, listContents, ROOT_CONTENTS, signedUrl } from '@/lib/s3';
-import type { BucketItem, BucketItemWithBlob, S3Credentials } from '@/lib/types';
-import { ItemTile } from './ItemTile';
-import { fetchMetadata } from '@/lib/db';
-import LoadingSpinner from './LoadingSpinner';
+import { listContents, ROOT_CONTENTS } from '@/lib/s3';
+import type { BucketItem, BucketItemWithBlob } from '@/lib/types';
 import Header from './Header';
 import DragTarget from './DragTarget';
 import { processDataTransfer } from '@/lib/upload';
-import { useSetAtom, useAtom } from 'jotai';
-import { allContentsAtom, showFooterAtom, selectedItemsAtom } from '@/lib/atoms';
+import { useAtom } from 'jotai';
+import { allContentsAtom } from '@/lib/atoms';
+import Browser from './Browser';
 const IMAGE_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.gif', '.webp'];
 const VIDEO_EXTENSIONS = ['.mp4', '.ts', '.mov'];
 
-const PAGE_SIZE = 24;
-
-export default function BucketBrowser({ onLogout, credentials }: { onLogout: () => void; credentials: S3Credentials }) {
+export default function BucketBrowser({ onLogout }: { onLogout: () => void }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [currentPath, setCurrentPath] = useState(searchParams.get('path') || '');
   const [allContents, setAllContents] = useAtom<BucketItemWithBlob[]>(allContentsAtom);
-  const [contents, setContents] = useState<BucketItemWithBlob[]>([]);
-  const [selectedVideo, setSelectedVideo] = useState<BucketItem | null>(null);
-  const [loadingVideo, setLoadingVideo] = useState('');
   const [loading, setLoading] = useState(true);
-  const [currentPage, setCurrentPage] = useState(parseInt(searchParams.get('page') || '1'));
-
-  const allImages = useMemo(() => allContents.filter(item => item.type === 'image'), [allContents]);
-
-  const [viewerImageIndex, setViewerImageIndex] = useState<number | null>(null);
-  const selectedImage = viewerImageIndex !== null ? allImages[viewerImageIndex] : null;
-  const totalPages = Math.ceil(allContents.length / PAGE_SIZE);
-  const [generation, setGeneration] = useState(0);
-
   const [isDragging, setIsDragging] = useState(false);
-  const setShowFooter = useSetAtom(showFooterAtom);
-  const setSelectedItems = useSetAtom(selectedItemsAtom);
-
-  useEffect(() => {
-    updateCurrentPageContents(currentPage, allContents);
-  }, [allContents, currentPage]);
-
-  const fetchAllImages = async (items: BucketItemWithBlob[]) => {
-    const imageItems = items.filter(item => item.type === 'image' && !item.blobUrl);
-
-    try {
-      const paths = imageItems.filter(item => !item.metadata).map(item => item.path)
-      const imageMeta = await fetchMetadata(paths, credentials);
-
-      await Promise.allSettled(
-        imageItems.map(async (item, i) => {
-          try {
-            let isThumbnail = false;
-            let key = item.path
-            if (key.startsWith('photos/')) {
-              key = key.replace('photos/', 'thumbnails/')
-              isThumbnail = true;
-            }
-
-            const blobUrl = await fetchFile(key)
-            if (isThumbnail) {
-              item.thumbnailBlobUrl = blobUrl
-            } else {
-              item.blobUrl = blobUrl
-            }
-            if (!item.metadata) {
-              item.metadata = imageMeta[item.path]
-            }
-            setGeneration(generation + 1 + i)
-
-            return { item, blobUrl };
-          } catch (error) {
-            console.error(`Failed to fetch image ${item.name}:`, error);
-            return { item, error };
-          }
-        })
-      );
-    } catch (error) {
-      console.error('Error fetching images:', error);
-    }
-  };
 
   const cleanupBlobUrls = (items: BucketItemWithBlob[]) => {
     items.forEach(item => {
@@ -140,30 +75,9 @@ export default function BucketBrowser({ onLogout, credentials }: { onLogout: () 
     }
   };
 
-  const updateCurrentPageContents = async (page: number, items = allContents) => {
-    const startIndex = (page - 1) * PAGE_SIZE;
-    const endIndex = startIndex + PAGE_SIZE;
-    const pageItems = items.slice(startIndex, endIndex);
-    setContents(pageItems);
-    await fetchAllImages(pageItems);
-  };
-
-  const handlePageChange = async (page: number) => {
-    if (page === currentPage) return;
-    setCurrentPage(page);
-    updateUrl(undefined, page);
-  };
-
-  const setNextImage = (index: number | null) => {
-    setViewerImageIndex(index);
-    setSelectedItems({});
-    updateUrl(undefined, undefined, index !== null ? allImages[index].path : '');
-  }
-
   useEffect(() => {
     if (currentPath === '') {
       setAllContents(ROOT_CONTENTS);
-      updateCurrentPageContents(1, ROOT_CONTENTS);
       setLoading(false);
     } else {
       fetchContents();
@@ -174,20 +88,11 @@ export default function BucketBrowser({ onLogout, credentials }: { onLogout: () 
   useEffect(() => {
     // Initialize with URL params
     const urlPath = searchParams.get('path');
-    const urlPage = parseInt(searchParams.get('page') || '1');
 
     if (urlPath !== currentPath) {
       setCurrentPath(urlPath || '');
     }
-    if (urlPage !== currentPage) {
-      handlePageChange(urlPage);
-    }
   }, [searchParams]);
-
-  useEffect(() => {
-    setShowFooter(totalPages > 1);
-    return () => setShowFooter(false);
-  }, [totalPages]);
 
   const breadcrumbs = [
     { name: 'root', path: '' },
@@ -198,7 +103,7 @@ export default function BucketBrowser({ onLogout, credentials }: { onLogout: () 
   ];
 
   // Update URL when path or page changes
-  const updateUrl = (newPath?: string, newPage?: number, imagePath?: string) => {
+  const updateUrl = (newPath: string) => {
     const params = new URLSearchParams(window.location.search);
 
     if (newPath !== undefined) {
@@ -209,51 +114,15 @@ export default function BucketBrowser({ onLogout, credentials }: { onLogout: () 
       }
     }
 
-    if (newPage !== undefined) {
-      if (newPage > 1) {
-        params.set('page', newPage.toString());
-      } else {
-        params.delete('page');
-      }
-    }
-
-    if (imagePath !== undefined) {
-      if (imagePath) {
-        params.set('image', imagePath);
-      } else {
-        params.delete('image');
-      }
-    }
-
     router.push(`/?${params.toString()}`, {
       scroll: false
     });
   };
 
   const updatePath = (newPath: string) => {
-    setCurrentPage(1); // Reset page when changing directory
     setCurrentPath(newPath);
-    updateUrl(newPath, 1);
+    updateUrl(newPath);
   };
-
-  // Effect to handle initial image viewing
-  useEffect(() => {
-    const urlImage = searchParams.get('image');
-    if (urlImage && allImages.length > 0) {
-      const index = allImages.findIndex(img => img.path === urlImage);
-      if (index !== -1) {
-        const page = Math.floor(index / PAGE_SIZE) + 1;
-
-        if (page !== currentPage) {
-          handlePageChange(page);
-        }
-
-        setViewerImageIndex(index);
-      }
-    } else if (!urlImage) {
-      setViewerImageIndex(null);
-    }
-  }, [searchParams, allContents]);
 
   const handleDrop = useCallback(async (e: React.DragEvent) => {
     if (!isDragging) return;
@@ -301,118 +170,11 @@ export default function BucketBrowser({ onLogout, credentials }: { onLogout: () 
         onDrop={handleDrop}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
-        onClick={(e) => {
-          if (e.shiftKey) {
-            e.preventDefault()
-            return
-          }
-          setSelectedItems({})
-        }}
       >
         {isDragging && <DragTarget />}
-        {loading ? (
-          <div className="h-screen w-screen">
-            <LoadingSpinner size="large" />
-          </div>
-        ) : contents.length === 0 ? (
-          <div className="flex flex-col flex-grow justify-center items-center">
-            <div className="text-center text-gray-600">
-              This directory is empty
-            </div>
-          </div>
-        ) : (
-          <div className="pb-20 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 max-w-7xl p-8 mx-auto">
-            {contents.map((item) => (
-              <ItemTile
-                key={item.path}
-                item={item}
-                handleDirectoryClick={updatePath}
-                handleVideoClick={async () => {
-                  try {
-                    setLoadingVideo(item.path);
-                    const url = await signedUrl(item);
-                    setSelectedVideo({ ...item, signedUrl: url });
-                  } catch (error) {
-                    console.error('Failed to load video', error);
-                  } finally {
-                    setLoadingVideo('');
-                  }
-                }}
-                handleImageClick={(item) => setNextImage(allImages.findIndex(img => img.path === item.path))}
-                loadingVideo={loadingVideo}
-              />
-            ))}
-          </div>
-        )}
+
+        <Browser allContents={allContents} loading={loading} updatePath={updatePath} />
       </div>
-
-      {totalPages > 1 && (
-        <div className="fixed bottom-0 left-0 right-0 py-2 px-4 backdrop-blur-lg bg-white/50">
-          <PageSwitcher
-            currentPage={currentPage}
-            totalPages={totalPages}
-            handlePageChange={handlePageChange}
-            visible
-          />
-        </div>
-      )}
-
-      {selectedImage && (
-        <ImageViewer
-          idx={viewerImageIndex!}
-          allImages={allImages}
-          credentials={credentials}
-          onClose={() => setNextImage(null)}
-          onSelectImage={(image) => {
-            const index = allImages.findIndex(img => img.path === image.path);
-            const nextPage = Math.floor(index / PAGE_SIZE) + 1;
-
-            if (nextPage !== currentPage) {
-              handlePageChange(nextPage);
-            }
-
-            setNextImage(index);
-          }}
-          onNext={async () => {
-            if (viewerImageIndex === null) return;
-
-            const nextIndex = viewerImageIndex + 1;
-            if (nextIndex < allImages.length) {
-              const nextPage = Math.floor(nextIndex / PAGE_SIZE) + 1;
-
-              if (nextPage !== currentPage) {
-                handlePageChange(nextPage);
-              }
-
-              setNextImage(nextIndex);
-            }
-          }}
-          onPrevious={() => {
-            if (viewerImageIndex === null) return;
-
-            const prevIndex = viewerImageIndex - 1;
-            if (prevIndex >= 0) {
-              const prevPage = Math.floor(prevIndex / PAGE_SIZE) + 1;
-
-              if (prevPage !== currentPage) {
-                handlePageChange(prevPage);
-              }
-
-              setNextImage(prevIndex);
-            }
-          }}
-        />
-      )}
-
-      {selectedVideo && (
-        <VideoPlayer
-          video={selectedVideo as { name: string; signedUrl: string }}
-          onClose={() => {
-            URL.revokeObjectURL(selectedVideo.signedUrl!);
-            setSelectedVideo(null);
-          }}
-        />
-      )}
     </div>
   );
 } 

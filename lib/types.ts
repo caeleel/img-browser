@@ -1,5 +1,5 @@
 export interface ImageMetadata {
-  id: string;
+  id: number;
   path: string;
   name: string;
   taken_at: string | null;

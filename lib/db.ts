@@ -14,7 +14,7 @@ export async function fetchMetadata(paths: string[], credentials: S3Credentials)
   return await response.json();
 }
 
-export async function updateMetadata(ids: string[], metadata: Partial<ImageMetadata>, credentials: S3Credentials) {
+export async function updateMetadata(ids: number[], metadata: Partial<ImageMetadata>, credentials: S3Credentials) {
   const response = await fetch('/api/metadata', {
     method: 'PUT',
     body: JSON.stringify({ ids, metadata, credentials })
