@@ -17,6 +17,7 @@ export interface ImageMetadata {
   focal_length: number | null;
   orientation: number;
   notes: string | null;
+  similarity?: number;
 }
 
 export interface BucketItem {

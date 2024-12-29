@@ -31,11 +31,20 @@ function ImageTile({ item }: {
   }
 
   return (
-    <img
-      src={blobUrl}
-      alt={item.name}
-      className={`w-full h-48 object-cover ${rotation}`}
-    />
+    <>
+      <img
+        src={blobUrl}
+        alt={item.name}
+        className={`w-full h-48 object-cover ${rotation}`}
+      />
+      {item.metadata?.similarity && (
+        <div className="absolute top-1 right-1 hidden group-hover:flex">
+          <div className="text-xs text-white bg-black/70 backdrop-blur-lg px-2 py-1 rounded">
+            {(item.metadata.similarity * 100).toFixed(0)}% match
+          </div>
+        </div>
+      )}
+    </>
   );
 }
 
@@ -129,7 +138,7 @@ export function ItemTile({ item, handleDirectoryClick, handleVideoClick, handleI
 
   return <button
     onClick={handleClick}
-    className={`w-full h-48 cursor-default flex items-center bg-black/5 hover:border-black border-4 justify-center ${isSelected ? 'border-black' : 'border-white'} overflow-hidden`}
+    className={`w-full h-48 relative cursor-default flex items-center bg-black/5 hover:border-black border-4 justify-center ${isSelected ? 'border-black' : 'border-white'} overflow-hidden group`}
   >
     {innerTile()}
   </button>

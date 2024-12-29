@@ -138,7 +138,6 @@ export async function uploadFile(key: string, file: Blob): Promise<void> {
     const signedUrl = await getSignedPutUrl(key, file.type);
 
     const body = await file.arrayBuffer();
-    console.log(file.type, file.size, body.byteLength);
     // Upload using signed URL
     const response = await fetch(signedUrl, {
       method: 'PUT',

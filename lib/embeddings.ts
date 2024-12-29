@@ -11,7 +11,6 @@ export async function getTextEmbedding(text: string): Promise<Embedding> {
     }
   });
   const data = await response.json();
-  console.log(data);
   return data.embedding;
 }
 
