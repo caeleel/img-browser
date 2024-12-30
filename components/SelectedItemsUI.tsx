@@ -91,12 +91,12 @@ export function ItemsUI({ selectedItems, deleteCallback, altStyle }: {
         transition: 'top 0.3s ease-in-out'
       }}>
         <div className={altStyle ? 'flex items-center gap-2 ml-2' : "bg-neutral-100/50 shadow-inner backdrop-blur-lg rounded-full py-0.5 px-1 pointer-events-auto h-9 flex items-center justify-center gap-1"}>
-          {!altStyle && <div className="px-6 mr-4">
+          {!altStyle && <div className="px-6">
             <p className="text-sm text-black/50">{selectedImages.length} selected</p>
           </div>}
           <button
             onClick={handleToggleFavorite}
-            className={altStyle ? 'rounded hover:bg-white/10 group' : "py-0.5 px-6 hover:bg-white hover:shadow-sm rounded-full relative group"}
+            className={altStyle ? 'rounded hover:bg-white/10 group p-0.5' : "py-0.5 px-4 hover:bg-white hover:shadow-sm rounded-full relative group"}
             title={allFavorited ? "Remove from favorites" : "Add to favorites"}
             disabled={isTogglingFavorite}
           >
@@ -105,7 +105,7 @@ export function ItemsUI({ selectedItems, deleteCallback, altStyle }: {
                 <LoadingSpinner size="small" light={altStyle} />
               </div>
             ) : (
-              <HeartIcon filled={allFavorited} flipOnHover color={altStyle ? '#fff' : '#888'} />
+              <HeartIcon filled={allFavorited} flipOnHover color={altStyle ? '#fff' : '#888'} size={altStyle ? 20 : 24} />
             )}
           </button>
           <button
@@ -113,11 +113,11 @@ export function ItemsUI({ selectedItems, deleteCallback, altStyle }: {
               e.stopPropagation();
               setShowConfirm(true);
             }}
-            className={altStyle ? 'rounded hover:bg-white/10 group' : "py-0.5 px-6 hover:bg-white hover:shadow-sm rounded-full group"}
+            className={altStyle ? 'rounded hover:bg-white/10 group p-0.5' : "py-0.5 px-4 hover:bg-white hover:shadow-sm rounded-full group"}
             title="Delete selected items"
             disabled={isDeleting}
           >
-            <TrashIcon color={altStyle ? '#fff' : '#888'} />
+            <TrashIcon color={altStyle ? '#fff' : '#888'} size={altStyle ? 20 : 24} />
           </button>
         </div>
       </div>

@@ -1,7 +1,7 @@
-export default function HeartIcon({ filled = false, flipOnHover = false, color = '#888' }: { filled?: boolean, flipOnHover?: boolean, color?: string }) {
+export default function HeartIcon({ filled = false, flipOnHover = false, color = '#888', size = 24 }: { filled?: boolean, flipOnHover?: boolean, color?: string, size?: number }) {
   const colorClass = `fill-[${color}] group-hover:fill-red-700`
   return (
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
       {!filled ? (
         <>
           <path d="M5.72366 13.6327C7.39735 16.209 10.6053 18.2844 12 19C13.3947 18.2844 16.6027 16.209 18.2763 13.6327C20.3685 10.4124 19.8454 5.58183 16.1842 5.04511C13.2553 4.61572 12.1743 7.37092 12 8.26546C11.8257 7.37092 10.7447 4.61572 7.81577 5.04511C4.15457 5.58183 3.63154 10.4124 5.72366 13.6327Z" className={`${colorClass} hidden group-hover:block`} />
