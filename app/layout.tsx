@@ -4,9 +4,11 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Provider, useAtomValue } from 'jotai';
 import UploadToast from '@/components/UploadToast';
-import { globalStore, showFooterAtom } from "@/lib/atoms";
+import { globalStore, showFooterAtom, useLoadCredentials } from "@/lib/atoms";
 import Nav from "@/components/Nav";
 import SelectedItemsUI from '@/components/SelectedItemsUI';
+import FullscreenContainer from "@/components/FullscreenContainer";
+import LoadingSpinner from "@/components/LoadingSpinner";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -33,6 +35,16 @@ function GlobalUI() {
   );
 }
 
+function CredentialsWrapper({ children }: { children: React.ReactNode }) {
+  const loading = useLoadCredentials();
+  if (loading) return (
+    <FullscreenContainer>
+      <LoadingSpinner size="large" />
+    </FullscreenContainer>
+  )
+  return children;
+}
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -42,9 +54,11 @@ export default function RootLayout({
     <html lang="en">
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
         <Provider store={globalStore}>
-          <Nav />
-          {children}
-          <GlobalUI />
+          <CredentialsWrapper>
+            <Nav />
+            {children}
+            <GlobalUI />
+          </CredentialsWrapper>
         </Provider>
       </body>
     </html>

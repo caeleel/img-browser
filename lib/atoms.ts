@@ -1,7 +1,7 @@
-import { atom, createStore, useAtomValue } from 'jotai';
+import { atom, createStore, useAtomValue, useSetAtom } from 'jotai';
 import { UploadStatus } from './upload';
 import { BucketItemWithBlob, Favorite } from './types';
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 export const globalStore = createStore();
 export const uploadStatusAtom = atom<UploadStatus | null>(null);
@@ -15,4 +15,19 @@ export const credentialsAtom = atom<{ accessKeyId: string; secretAccessKey: stri
 export function useFavoriteIds() {
   const favorites = useAtomValue(favoritesAtom);
   return useMemo(() => new Set(favorites.map(f => f.image_id)), [favorites]);
+}
+
+export function useLoadCredentials() {
+  const setCredentials = useSetAtom(credentialsAtom);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const savedCredentials = localStorage.getItem('doCredentials')
+    if (savedCredentials) {
+      setCredentials(JSON.parse(savedCredentials))
+    }
+    setLoading(false)
+  }, []);
+
+  return loading
 }

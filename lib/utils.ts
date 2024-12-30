@@ -30,6 +30,7 @@ export function logout() {
 
 export async function getFavorites(): Promise<Favorite[]> {
   const credentials = getCredentials();
+  if (!credentials) return [];
   const response = await fetch('/api/favorites', {
     headers: {
       'X-DO-ACCESS-KEY-ID': credentials.accessKeyId,
