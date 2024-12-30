@@ -9,6 +9,8 @@ import Header from '@/components/Header';
 import FullscreenContainer from '@/components/FullscreenContainer';
 import Browser from '@/components/Browser';
 import SelectedItemsUI from '@/components/SelectedItemsUI';
+import { selectedItemsAtom } from '@/lib/atoms';
+import { useSetAtom } from 'jotai';
 
 export default function SearchPage() {
   return <Suspense>
@@ -20,6 +22,7 @@ function SearchPageInner() {
   const [query, setQuery] = useState('');
   const [items, setItems] = useState<BucketItemWithBlob[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const setSelectedItems = useSetAtom(selectedItemsAtom);
   const searchParams = useSearchParams();
   const router = useRouter();
 
@@ -107,7 +110,9 @@ function SearchPageInner() {
   };
 
   return (
-    <div>
+    <div onClick={() => {
+      setSelectedItems({});
+    }}>
       <SelectedItemsUI deleteCallback={(deletedItems) => {
         const pathSet = new Set(deletedItems.map(item => item.path));
         setItems(items.filter(item => !pathSet.has(item.path)))
