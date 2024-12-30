@@ -6,12 +6,11 @@ import BucketBrowser from '../components/BucketBrowser';
 import { clearS3Cache } from '@/lib/s3';
 import FullscreenContainer from '@/components/FullscreenContainer';
 import LoadingSpinner from '@/components/LoadingSpinner';
+import { useAtom } from 'jotai';
+import { credentialsAtom } from '@/lib/atoms';
 
 export default function Home() {
-  const [credentials, setCredentials] = useState<{
-    accessKeyId: string;
-    secretAccessKey: string;
-  } | null>(null);
+  const [credentials, setCredentials] = useAtom(credentialsAtom);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -41,7 +40,7 @@ export default function Home() {
   }
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="bg-white">
       {!credentials ? (
         <Login onLogin={handleLogin} />
       ) : (

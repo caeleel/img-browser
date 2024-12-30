@@ -10,6 +10,7 @@ export const showFooterAtom = atom<boolean>(false);
 export const selectedItemsAtom = atom<{ [path: string]: BucketItemWithBlob }>({});
 export const allContentsAtom = atom<BucketItemWithBlob[]>([]);
 export const favoritesAtom = atom<Favorite[]>([]);
+export const credentialsAtom = atom<{ accessKeyId: string; secretAccessKey: string } | null>(null);
 
 export function useFavoriteIds() {
   const favorites = useAtomValue(favoritesAtom);

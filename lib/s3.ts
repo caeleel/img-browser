@@ -16,14 +16,14 @@ const ROOT_PATHS = ROOT_CONTENTS.map(item => item.path.slice(0, -1));
 
 export function getCredentials() {
   if (typeof window === 'undefined') {
-    return { accessKeyId: '', secretAccessKey: '' };
+    return null
   }
 
   const savedCredentials = localStorage.getItem('doCredentials');
   if (!savedCredentials) {
-    throw new Error('No credentials found');
+    return null
   }
-  return JSON.parse(savedCredentials);
+  return JSON.parse(savedCredentials)
 }
 
 function getS3Client() {

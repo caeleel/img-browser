@@ -1,7 +1,7 @@
 'use client';
 
-import { useAtom, useSetAtom } from 'jotai';
-import { selectedItemsAtom, allContentsAtom, favoritesAtom, useFavoriteIds } from '@/lib/atoms';
+import { useAtom, useAtomValue, useSetAtom } from 'jotai';
+import { selectedItemsAtom, allContentsAtom, favoritesAtom, useFavoriteIds, credentialsAtom } from '@/lib/atoms';
 import { useState, useEffect, useMemo } from "react";
 import TrashIcon from "./icons/TrashIcon";
 import HeartIcon from "./icons/HeartIcon";
@@ -17,6 +17,7 @@ export default function SelectedItemsUI() {
   const [allContents, setAllContents] = useAtom(allContentsAtom);
   const setFavoriteStatus = useSetAtom(favoritesAtom);
   const favoriteIds = useFavoriteIds();
+  const credentials = useAtomValue(credentialsAtom);
 
   // Filter to only images
   const selectedImages = Object.values(selectedItems).filter(item => item.type === 'image');
@@ -76,6 +77,8 @@ export default function SelectedItemsUI() {
       setIsTogglingFavorite(false);
     }
   };
+
+  if (!credentials) return null;
 
   return (
     <>

@@ -45,7 +45,7 @@ function FavoritesInner() {
   }, [favorites]);
 
   return (
-    <div className="min-h-screen">
+    <div>
       <Header />
 
       {!isLoading && items.length === 0 ? (

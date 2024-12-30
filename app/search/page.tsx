@@ -106,7 +106,7 @@ function SearchPageInner() {
   };
 
   return (
-    <div className="min-h-screen">
+    <div>
       {/* Search Bar */}
       <Header search={query} onSearch={handleSearchChange} />
 
