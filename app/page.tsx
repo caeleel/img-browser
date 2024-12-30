@@ -1,11 +1,10 @@
 'use client';
 
-import { useState, useEffect } from 'react';
 import Login from '../components/Login';
 import BucketBrowser from '../components/BucketBrowser';
 import { clearS3Cache } from '@/lib/s3';
 import { useAtom } from 'jotai';
-import { credentialsAtom, useLoadCredentials } from '@/lib/atoms';
+import { credentialsAtom } from '@/lib/atoms';
 
 export default function Home() {
   const [credentials, setCredentials] = useAtom(credentialsAtom);
