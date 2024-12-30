@@ -26,7 +26,7 @@ export default function ImageViewer({
 }: {
   idx: number
   allImages: BucketItemWithBlob[]
-  onClose: () => void
+  onClose: (deleteImage?: boolean) => void
   onNext?: () => void
   onPrevious?: () => void
   onSelectImage: (image: BucketItemWithBlob) => void

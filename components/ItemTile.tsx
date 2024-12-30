@@ -9,7 +9,7 @@ function DirectoryTile({ item }: {
   item: BucketItemWithBlob,
 }) {
   return (
-    <div className="p-4 text-left text-black/50 text-sm">
+    <div className="p-4 text-left text-black/50 text-sm group-hover:text-black">
       📁 {item.name}
     </div>
   )

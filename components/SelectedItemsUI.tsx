@@ -1,32 +1,34 @@
 'use client';
 
-import { useAtom, useAtomValue, useSetAtom } from 'jotai';
-import { selectedItemsAtom, allContentsAtom, favoritesAtom, useFavoriteIds, credentialsAtom } from '@/lib/atoms';
-import { useState, useEffect, useMemo } from "react";
+import { useAtom, useAtomValue } from 'jotai';
+import { selectedItemsAtom, allContentsAtom, useFavoriteIds, credentialsAtom, useLoadFavorites } from '@/lib/atoms';
+import { useState, useMemo } from "react";
 import TrashIcon from "./icons/TrashIcon";
 import HeartIcon from "./icons/HeartIcon";
 import { deleteFileWithMetadata } from '@/lib/db';
 import LoadingSpinner from './LoadingSpinner';
-import { getFavorites, toggleFavorites } from '@/lib/utils';
+import { toggleFavorites } from '@/lib/utils';
 import { BucketItemWithBlob } from '@/lib/types';
 import { createPortal } from 'react-dom';
 
-export default function SelectedItemsUI() {
+export default function SelectedItemsUI({ deleteCallback }: { deleteCallback: (items: BucketItemWithBlob[]) => void }) {
   const [selectedItems, setSelectedItems] = useAtom(selectedItemsAtom);
 
-  return <ItemsUI selectedItems={selectedItems} deleteCallback={() => setSelectedItems({})} />
+  return <ItemsUI selectedItems={selectedItems} deleteCallback={(items) => {
+    deleteCallback(items);
+    setSelectedItems({});
+  }} />
 }
 
 export function ItemsUI({ selectedItems, deleteCallback, altStyle }: {
   selectedItems: { [path: string]: BucketItemWithBlob },
-  deleteCallback: () => void,
+  deleteCallback: (items: BucketItemWithBlob[]) => void,
   altStyle?: boolean
 }) {
   const [showConfirm, setShowConfirm] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isTogglingFavorite, setIsTogglingFavorite] = useState(false);
   const [allContents, setAllContents] = useAtom(allContentsAtom);
-  const setFavoriteStatus = useSetAtom(favoritesAtom);
   const favoriteIds = useFavoriteIds();
   const credentials = useAtomValue(credentialsAtom);
 
@@ -34,15 +36,7 @@ export function ItemsUI({ selectedItems, deleteCallback, altStyle }: {
   const selectedImages = Object.values(selectedItems).filter(item => item.type === 'image');
   const isShown = selectedImages.length > 0;
 
-  // Check favorite status of selected images
-  useEffect(() => {
-    const checkFavorites = async () => {
-      const favorites = await getFavorites();
-      setFavoriteStatus(favorites);
-    };
-
-    checkFavorites();
-  }, []);
+  useLoadFavorites()
 
   const handleDelete = async (e: React.MouseEvent<HTMLButtonElement>) => {
     e.stopPropagation();
@@ -52,7 +46,7 @@ export function ItemsUI({ selectedItems, deleteCallback, altStyle }: {
     try {
       const paths = selectedImages.map(item => item.path);
       await deleteFileWithMetadata(paths);
-      deleteCallback();
+      deleteCallback(selectedImages);
       setAllContents(allContents.filter(item => !paths.includes(item.path)));
       setShowConfirm(false);
     } finally {

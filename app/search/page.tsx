@@ -8,6 +8,7 @@ import { getThumbnailUrl } from '@/lib/utils';
 import Header from '@/components/Header';
 import FullscreenContainer from '@/components/FullscreenContainer';
 import Browser from '@/components/Browser';
+import SelectedItemsUI from '@/components/SelectedItemsUI';
 
 export default function SearchPage() {
   return <Suspense>
@@ -107,7 +108,10 @@ function SearchPageInner() {
 
   return (
     <div>
-      {/* Search Bar */}
+      <SelectedItemsUI deleteCallback={(deletedItems) => {
+        const pathSet = new Set(deletedItems.map(item => item.path));
+        setItems(items.filter(item => !pathSet.has(item.path)))
+      }} />
       <Header search={query} onSearch={handleSearchChange} />
 
       {/* Results Grid */}
@@ -122,7 +126,9 @@ function SearchPageInner() {
           <div className="text-center text-gray-500 mt-8">
             No results found
           </div>
-        ) : <Browser allContents={items} pageSize={50} loading={isLoading} />}
+        ) : <Browser allContents={items} pageSize={50} loading={isLoading} onDelete={(path) => {
+          setItems(items.filter(item => item.path !== path))
+        }} />}
       </div>
     </div>
   );

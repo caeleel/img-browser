@@ -10,6 +10,7 @@ import { processDataTransfer } from '@/lib/upload';
 import { useAtom } from 'jotai';
 import { allContentsAtom } from '@/lib/atoms';
 import Browser from './Browser';
+import SelectedItemsUI from './SelectedItemsUI';
 const IMAGE_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.gif', '.webp'];
 const VIDEO_EXTENSIONS = ['.mp4', '.ts', '.mov'];
 
@@ -161,6 +162,10 @@ export default function BucketBrowser({ onLogout }: { onLogout: () => void }) {
 
   return (
     <div>
+      <SelectedItemsUI deleteCallback={(deletedItems) => {
+        const pathSet = new Set(deletedItems.map(item => item.path));
+        setAllContents(allContents.filter(item => !pathSet.has(item.path)))
+      }} />
       <Header breadcrumbs={breadcrumbs} onLogout={onLogout} updatePath={updatePath} />
 
       <div
@@ -170,7 +175,9 @@ export default function BucketBrowser({ onLogout }: { onLogout: () => void }) {
       >
         {isDragging && <DragTarget />}
 
-        <Browser allContents={allContents} loading={loading} updatePath={updatePath} />
+        <Browser allContents={allContents} loading={loading} updatePath={updatePath} onDelete={(path) => {
+          setAllContents(allContents.filter(item => item.path !== path))
+        }} />
       </div>
     </div>
   );

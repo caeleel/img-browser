@@ -6,8 +6,9 @@ import { getThumbnailUrl } from '@/lib/utils';
 import Browser from '@/components/Browser';
 import Header from '@/components/Header';
 import FullscreenContainer from '@/components/FullscreenContainer'
-import { favoritesAtom } from '@/lib/atoms';
+import { favoritesAtom, useLoadFavorites } from '@/lib/atoms';
 import { useAtomValue } from 'jotai';
+import SelectedItemsUI from '@/components/SelectedItemsUI';
 
 export default function FavoritesPage() {
   return (
@@ -44,8 +45,14 @@ function FavoritesInner() {
     fetchItems();
   }, [favorites]);
 
+  useLoadFavorites()
+
   return (
     <div>
+      <SelectedItemsUI deleteCallback={(deletedItems) => {
+        const pathSet = new Set(deletedItems.map(item => item.path));
+        setItems(items.filter(item => !pathSet.has(item.path)))
+      }} />
       <Header />
 
       {!isLoading && items.length === 0 ? (
@@ -55,7 +62,9 @@ function FavoritesInner() {
           </div>
         </FullscreenContainer>
       ) : (
-        <Browser allContents={items} loading={isLoading} />
+        <Browser allContents={items} loading={isLoading} onDelete={(path) => {
+          setItems(items.filter(item => item.path !== path))
+        }} />
       )}
     </div>
   );

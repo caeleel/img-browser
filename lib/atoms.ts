@@ -2,6 +2,7 @@ import { atom, createStore, useAtomValue, useSetAtom } from 'jotai';
 import { UploadStatus } from './upload';
 import { BucketItemWithBlob, Favorite } from './types';
 import { useEffect, useMemo, useState } from 'react';
+import { getFavorites } from './utils';
 
 export const globalStore = createStore();
 export const uploadStatusAtom = atom<UploadStatus | null>(null);
@@ -30,4 +31,15 @@ export function useLoadCredentials() {
   }, []);
 
   return loading
+}
+
+export function useLoadFavorites() {
+  const setFavorites = useSetAtom(favoritesAtom)
+  useEffect(() => {
+    const fetchFavorites = async () => {
+      const favorites = await getFavorites()
+      setFavorites(favorites)
+    }
+    fetchFavorites()
+  }, [])
 }

@@ -16,10 +16,11 @@ import FullscreenContainer from './FullscreenContainer';
 
 const PAGE_SIZE = 24;
 
-export default function Browser({ allContents, pageSize = PAGE_SIZE, updatePath = () => { }, loading = false }: {
+export default function Browser({ allContents, pageSize = PAGE_SIZE, updatePath = () => { }, onDelete = () => { }, loading = false }: {
   allContents: BucketItemWithBlob[],
-  pageSize?: number, updatePath?:
-  (path: string) => void,
+  pageSize?: number,
+  updatePath?: (path: string) => void,
+  onDelete?: (path: string) => void,
   loading?: boolean
 }) {
   const router = useRouter();
@@ -227,7 +228,13 @@ export default function Browser({ allContents, pageSize = PAGE_SIZE, updatePath 
           idx={viewerImageIndex!}
           allImages={allImages}
           credentials={credentials}
-          onClose={() => setNextImage(null)}
+          onClose={(deleteImage) => {
+            setNextImage(null)
+
+            if (deleteImage) {
+              onDelete(selectedImage.path)
+            }
+          }}
           onSelectImage={(image) => {
             const index = allImages.findIndex(img => img.path === image.path);
             setNextImage(index);

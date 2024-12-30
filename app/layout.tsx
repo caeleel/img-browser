@@ -24,14 +24,11 @@ function GlobalUI() {
   const showFooter = useAtomValue(showFooterAtom);
 
   return (
-    <>
-      <SelectedItemsUI />
-      <div className={`fixed z-20 left-4 ${showFooter ? 'bottom-16' : 'bottom-4'}`} style={{
-        transition: 'bottom 0.3s ease-in-out'
-      }}>
-        <UploadToast />
-      </div>
-    </>
+    <div className={`fixed z-20 left-4 ${showFooter ? 'bottom-16' : 'bottom-4'}`} style={{
+      transition: 'bottom 0.3s ease-in-out'
+    }}>
+      <UploadToast />
+    </div>
   );
 }
 
