@@ -33,12 +33,30 @@ export function useLoadCredentials() {
   return loading
 }
 
-export function useLoadFavorites() {
+export function useLoadFavorites(onComplete: () => void = () => { }) {
   const setFavorites = useSetAtom(favoritesAtom)
   useEffect(() => {
     const fetchFavorites = async () => {
-      const favorites = await getFavorites()
-      setFavorites(favorites)
+      const newFavorites = await getFavorites()
+      const favorites = globalStore.get(favoritesAtom)
+
+      let favoritesChanged = false
+      if (favorites.length !== newFavorites.length) {
+        favoritesChanged = true
+      } else {
+        const prevFavoriteIds = new Set(favorites.map(f => f.image_id))
+
+        for (const favorite of newFavorites) {
+          if (!prevFavoriteIds.has(favorite.image_id)) {
+            favoritesChanged = true
+            break
+          }
+        }
+      }
+      if (favoritesChanged) {
+        setFavorites(newFavorites)
+      }
+      onComplete()
     }
     fetchFavorites()
   }, [])

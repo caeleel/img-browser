@@ -16,12 +16,20 @@ import FullscreenContainer from './FullscreenContainer';
 
 const PAGE_SIZE = 24;
 
-export default function Browser({ allContents, pageSize = PAGE_SIZE, updatePath = () => { }, onDelete = () => { }, loading = false }: {
+export default function Browser({
+  allContents,
+  pageSize = PAGE_SIZE,
+  updatePath = () => { },
+  onDelete = () => { },
+  loading = false,
+  onPageChange = () => { }
+}: {
   allContents: BucketItemWithBlob[],
   pageSize?: number,
   updatePath?: (path: string) => void,
   onDelete?: (path: string) => void,
-  loading?: boolean
+  loading?: boolean,
+  onPageChange?: (page: number) => void
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -113,9 +121,10 @@ export default function Browser({ allContents, pageSize = PAGE_SIZE, updatePath 
   }
 
   useEffect(() => {
+    const stringPage = searchParams.get('page')
     const urlPage = parseInt(searchParams.get('page') || '1');
 
-    if (urlPage !== currentPage) {
+    if (stringPage !== undefined && urlPage !== currentPage) {
       handlePageChange(urlPage);
     }
   }, [searchParams]);
@@ -130,6 +139,7 @@ export default function Browser({ allContents, pageSize = PAGE_SIZE, updatePath 
     const params = new URLSearchParams(window.location.search);
 
     if (newPage !== undefined) {
+      onPageChange(newPage);
       if (newPage > 1) {
         params.set('page', newPage.toString());
       } else {

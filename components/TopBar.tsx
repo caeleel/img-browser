@@ -96,19 +96,22 @@ export default function TopBar({ onPrevious, onNext, onClose, toggleFullscreen, 
                   setEditing(null);
                 }
               }}
-              className="bg-white/10 px-2 rounded text-white w-48"
+              className="bg-white/10 px-2 py-0.5 rounded text-white max-w-48"
               autoFocus
             />
           ) : (
             <button
-              onClick={() => setEditing('name')}
-              className="hover:bg-white/10 px-2 py-0.5 rounded"
+              onClick={() => {
+                setEditing('name')
+                setEditValue(image.name)
+              }}
+              className="hover:bg-white/10 px-2 py-0.5 rounded max-w-48 overflow-ellipsis whitespace-nowrap overflow-hidden"
             >
               {image.name}
             </button>
           )
         ) : (
-          <span>{image.name}</span>
+          <span className="max-w-48 overflow-ellipsis whitespace-nowrap overflow-hidden px-2 py-0.5">{image.name}</span>
         )}
         <span className="text-white/70 ml-1">{idx + 1} / {total}</span>
       </h2>

@@ -14,10 +14,13 @@ import SelectedItemsUI from './SelectedItemsUI';
 const IMAGE_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.gif', '.webp'];
 const VIDEO_EXTENSIONS = ['.mp4', '.ts', '.mov'];
 
+let directoryPath = '';
+let currentPage = 1;
+
 export default function BucketBrowser({ onLogout }: { onLogout: () => void }) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [currentPath, setCurrentPath] = useState(searchParams.get('path') || '');
+  const [currentPath, setCurrentPath] = useState(searchParams.get('path') || directoryPath);
   const [allContents, setAllContents] = useAtom<BucketItemWithBlob[]>(allContentsAtom);
   const [loading, setLoading] = useState(true);
   const [isDragging, setIsDragging] = useState(false);
@@ -77,21 +80,30 @@ export default function BucketBrowser({ onLogout }: { onLogout: () => void }) {
   };
 
   useEffect(() => {
+    directoryPath = currentPath
+
     if (currentPath === '') {
-      setAllContents(ROOT_CONTENTS);
-      setLoading(false);
+      setAllContents(ROOT_CONTENTS)
+      setLoading(false)
     } else {
-      fetchContents();
+      fetchContents()
     }
-    return () => cleanupBlobUrls(allContents);
+
+    return () => cleanupBlobUrls(allContents)
   }, [currentPath]);
+
+  useEffect(() => {
+    if (!searchParams.get('page') && directoryPath !== '') {
+      updatePath(directoryPath, currentPage);
+    }
+  }, [])
 
   useEffect(() => {
     // Initialize with URL params
     const urlPath = searchParams.get('path');
 
-    if (urlPath !== currentPath) {
-      setCurrentPath(urlPath || '');
+    if (urlPath && urlPath !== currentPath) {
+      setCurrentPath(urlPath);
     }
   }, [searchParams]);
 
@@ -103,7 +115,7 @@ export default function BucketBrowser({ onLogout }: { onLogout: () => void }) {
     }))
   ];
 
-  const updatePath = (newPath: string) => {
+  const updatePath = (newPath: string, newPage?: number) => {
     setCurrentPath(newPath);
 
     const params = new URLSearchParams(window.location.search);
@@ -115,7 +127,13 @@ export default function BucketBrowser({ onLogout }: { onLogout: () => void }) {
         params.delete('path');
       }
     }
-    params.delete('page');
+
+    if (newPage !== undefined && newPage > 1) {
+      params.set('page', newPage.toString());
+    } else if (newPage === undefined) {
+      params.delete('page');
+      currentPage = 1
+    }
 
     router.push(`/?${params.toString()}`, {
       scroll: false
@@ -175,9 +193,17 @@ export default function BucketBrowser({ onLogout }: { onLogout: () => void }) {
       >
         {isDragging && <DragTarget />}
 
-        <Browser allContents={allContents} loading={loading} updatePath={updatePath} onDelete={(path) => {
-          setAllContents(allContents.filter(item => item.path !== path))
-        }} />
+        <Browser
+          allContents={allContents}
+          loading={loading}
+          updatePath={updatePath}
+          onDelete={(path) => {
+            setAllContents(allContents.filter(item => item.path !== path))
+          }}
+          onPageChange={(page) => {
+            currentPage = page
+          }}
+        />
       </div>
     </div>
   );

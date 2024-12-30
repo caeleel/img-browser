@@ -22,6 +22,7 @@ function FavoritesInner() {
   const [items, setItems] = useState<BucketItemWithBlob[]>([]);
   const favorites = useAtomValue(favoritesAtom);
   const [isLoading, setIsLoading] = useState(true);
+  const [isInitialLoadDone, setIsInitialLoadDone] = useState(false);
 
   useEffect(() => {
     const fetchItems = async () => {
@@ -33,7 +34,7 @@ function FavoritesInner() {
             path: favorite.path,
             thumbnailBlobUrl: await getThumbnailUrl(favorite.path),
           }))
-        );
+        )
         setItems(newItems);
       } catch (error) {
         console.error('Error fetching favorites:', error);
@@ -45,7 +46,8 @@ function FavoritesInner() {
     fetchItems();
   }, [favorites]);
 
-  useLoadFavorites()
+  useLoadFavorites(() => setIsInitialLoadDone(true))
+  const loading = isLoading || !isInitialLoadDone
 
   return (
     <div>
@@ -55,14 +57,14 @@ function FavoritesInner() {
       }} />
       <Header />
 
-      {!isLoading && items.length === 0 ? (
+      {!loading && items.length === 0 ? (
         <FullscreenContainer>
           <div className="text-black/30">
             No favorited images yet
           </div>
         </FullscreenContainer>
       ) : (
-        <Browser allContents={items} loading={isLoading} onDelete={(path) => {
+        <Browser allContents={items} loading={loading} onDelete={(path) => {
           setItems(items.filter(item => item.path !== path))
         }} />
       )}
