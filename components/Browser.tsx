@@ -37,9 +37,14 @@ export default function Browser({ allContents, pageSize = PAGE_SIZE, updatePath 
   const selectedImage = viewerImageIndex !== null ? allImages[viewerImageIndex] : null;
   const totalPages = Math.ceil(allContents.length / pageSize);
   const [generation, setGeneration] = useState(0);
+  const [delayedIsLoading, setDelayedIsLoading] = useState(true);
 
   const setShowFooter = useSetAtom(showFooterAtom);
   const setSelectedItems = useSetAtom(selectedItemsAtom);
+
+  useEffect(() => {
+    setTimeout(() => setDelayedIsLoading(loading), 10)
+  }, [loading])
 
   useEffect(() => {
     updateCurrentPageContents(currentPage, allContents);
@@ -176,7 +181,7 @@ export default function Browser({ allContents, pageSize = PAGE_SIZE, updatePath 
           setSelectedItems({})
         }}
       >
-        {loading ? (
+        {loading || delayedIsLoading ? (
           <FullscreenContainer>
             <LoadingSpinner size="large" />
           </FullscreenContainer>
