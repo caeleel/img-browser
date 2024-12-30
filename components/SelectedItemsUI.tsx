@@ -8,9 +8,19 @@ import HeartIcon from "./icons/HeartIcon";
 import { deleteFileWithMetadata } from '@/lib/db';
 import LoadingSpinner from './LoadingSpinner';
 import { getFavorites, toggleFavorites } from '@/lib/utils';
+import { BucketItemWithBlob } from '@/lib/types';
 
 export default function SelectedItemsUI() {
   const [selectedItems, setSelectedItems] = useAtom(selectedItemsAtom);
+
+  return <ItemsUI selectedItems={selectedItems} deleteCallback={() => setSelectedItems({})} />
+}
+
+export function ItemsUI({ selectedItems, deleteCallback, altStyle }: {
+  selectedItems: { [path: string]: BucketItemWithBlob },
+  deleteCallback: () => void,
+  altStyle?: boolean
+}) {
   const [showConfirm, setShowConfirm] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isTogglingFavorite, setIsTogglingFavorite] = useState(false);
@@ -41,7 +51,7 @@ export default function SelectedItemsUI() {
     try {
       const paths = selectedImages.map(item => item.path);
       await deleteFileWithMetadata(paths);
-      setSelectedItems({});
+      deleteCallback();
       setAllContents(allContents.filter(item => !paths.includes(item.path)));
       setShowConfirm(false);
     } finally {
@@ -82,25 +92,25 @@ export default function SelectedItemsUI() {
 
   return (
     <>
-      <div className={`fixed flex justify-center items-center pointer-events-none left-0 right-0 p-1.5 z-20 ${isShown ? 'top-0' : '-top-12'}`} style={{
+      <div className={altStyle ? '' : `fixed flex justify-center items-center pointer-events-none left-0 right-0 p-1.5 z-20 ${isShown ? 'top-0' : '-top-12'}`} style={{
         transition: 'top 0.3s ease-in-out'
       }}>
-        <div className="bg-neutral-100/50 shadow-inner backdrop-blur-lg rounded-full py-0.5 px-1 pointer-events-auto h-9 flex items-center justify-center gap-1">
-          <div className="px-6 mr-4">
+        <div className={altStyle ? '' : "bg-neutral-100/50 shadow-inner backdrop-blur-lg rounded-full py-0.5 px-1 pointer-events-auto h-9 flex items-center justify-center gap-1"}>
+          {!altStyle && <div className="px-6 mr-4">
             <p className="text-sm text-black/50">{selectedImages.length} selected</p>
-          </div>
+          </div>}
           <button
             onClick={handleToggleFavorite}
-            className="py-0.5 px-6 hover:bg-white hover:shadow-sm rounded-full relative group"
+            className={altStyle ? 'rounded hover:bg-white/5 group' : "py-0.5 px-6 hover:bg-white hover:shadow-sm rounded-full relative group"}
             title={allFavorited ? "Remove from favorites" : "Add to favorites"}
             disabled={isTogglingFavorite}
           >
             {isTogglingFavorite ? (
               <div className="h-6 w-6">
-                <LoadingSpinner size="small" />
+                <LoadingSpinner size="small" light={altStyle} />
               </div>
             ) : (
-              <HeartIcon filled={allFavorited} flipOnHover />
+              <HeartIcon filled={allFavorited} flipOnHover color={altStyle ? '#fff' : '#888'} />
             )}
           </button>
           <button
@@ -108,11 +118,11 @@ export default function SelectedItemsUI() {
               e.stopPropagation();
               setShowConfirm(true);
             }}
-            className="py-0.5 px-6 hover:bg-white hover:shadow-sm rounded-full group"
+            className={altStyle ? 'rounded hover:bg-white/5 group' : "py-0.5 px-6 hover:bg-white hover:shadow-sm rounded-full group"}
             title="Delete selected items"
             disabled={isDeleting}
           >
-            <TrashIcon />
+            <TrashIcon color={altStyle ? '#fff' : '#888'} />
           </button>
         </div>
       </div>
