@@ -101,7 +101,7 @@ export function ItemsUI({ selectedItems, deleteCallback, altStyle }: {
             disabled={isTogglingFavorite}
           >
             {isTogglingFavorite ? (
-              <div className="h-6 w-6">
+              <div className={altStyle ? "h-5 w-5" : "h-6 w-6"}>
                 <LoadingSpinner size="small" light={altStyle} />
               </div>
             ) : (
