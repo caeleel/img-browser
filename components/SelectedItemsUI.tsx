@@ -9,6 +9,7 @@ import { deleteFileWithMetadata } from '@/lib/db';
 import LoadingSpinner from './LoadingSpinner';
 import { getFavorites, toggleFavorites } from '@/lib/utils';
 import { BucketItemWithBlob } from '@/lib/types';
+import { createPortal } from 'react-dom';
 
 export default function SelectedItemsUI() {
   const [selectedItems, setSelectedItems] = useAtom(selectedItemsAtom);
@@ -95,13 +96,13 @@ export function ItemsUI({ selectedItems, deleteCallback, altStyle }: {
       <div className={altStyle ? '' : `fixed flex justify-center items-center pointer-events-none left-0 right-0 p-1.5 z-20 ${isShown ? 'top-0' : '-top-12'}`} style={{
         transition: 'top 0.3s ease-in-out'
       }}>
-        <div className={altStyle ? '' : "bg-neutral-100/50 shadow-inner backdrop-blur-lg rounded-full py-0.5 px-1 pointer-events-auto h-9 flex items-center justify-center gap-1"}>
+        <div className={altStyle ? 'flex items-center gap-2 ml-2' : "bg-neutral-100/50 shadow-inner backdrop-blur-lg rounded-full py-0.5 px-1 pointer-events-auto h-9 flex items-center justify-center gap-1"}>
           {!altStyle && <div className="px-6 mr-4">
             <p className="text-sm text-black/50">{selectedImages.length} selected</p>
           </div>}
           <button
             onClick={handleToggleFavorite}
-            className={altStyle ? 'rounded hover:bg-white/5 group' : "py-0.5 px-6 hover:bg-white hover:shadow-sm rounded-full relative group"}
+            className={altStyle ? 'rounded hover:bg-white/10 group' : "py-0.5 px-6 hover:bg-white hover:shadow-sm rounded-full relative group"}
             title={allFavorited ? "Remove from favorites" : "Add to favorites"}
             disabled={isTogglingFavorite}
           >
@@ -118,7 +119,7 @@ export function ItemsUI({ selectedItems, deleteCallback, altStyle }: {
               e.stopPropagation();
               setShowConfirm(true);
             }}
-            className={altStyle ? 'rounded hover:bg-white/5 group' : "py-0.5 px-6 hover:bg-white hover:shadow-sm rounded-full group"}
+            className={altStyle ? 'rounded hover:bg-white/10 group' : "py-0.5 px-6 hover:bg-white hover:shadow-sm rounded-full group"}
             title="Delete selected items"
             disabled={isDeleting}
           >
@@ -127,7 +128,7 @@ export function ItemsUI({ selectedItems, deleteCallback, altStyle }: {
         </div>
       </div>
 
-      {showConfirm && (
+      {showConfirm && createPortal(
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-white/70 backdrop-blur-lg rounded-lg p-6 max-w-sm">
             <p className="text-black/50 mb-6 text-sm">
@@ -157,7 +158,8 @@ export function ItemsUI({ selectedItems, deleteCallback, altStyle }: {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </>
   );

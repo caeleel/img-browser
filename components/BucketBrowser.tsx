@@ -102,8 +102,9 @@ export default function BucketBrowser({ onLogout }: { onLogout: () => void }) {
     }))
   ];
 
-  // Update URL when path or page changes
-  const updateUrl = (newPath: string) => {
+  const updatePath = (newPath: string) => {
+    setCurrentPath(newPath);
+
     const params = new URLSearchParams(window.location.search);
 
     if (newPath !== undefined) {
@@ -113,15 +114,11 @@ export default function BucketBrowser({ onLogout }: { onLogout: () => void }) {
         params.delete('path');
       }
     }
+    params.delete('page');
 
     router.push(`/?${params.toString()}`, {
       scroll: false
     });
-  };
-
-  const updatePath = (newPath: string) => {
-    setCurrentPath(newPath);
-    updateUrl(newPath);
   };
 
   const handleDrop = useCallback(async (e: React.DragEvent) => {

@@ -2,6 +2,7 @@ import { getCredentials } from "@/lib/s3";
 import { BucketItemWithBlob } from "@/lib/types"
 import { Dispatch, SetStateAction, useState } from "react";
 import CloseIcon from "./icons/CloseIcon";
+import { ItemsUI } from "./SelectedItemsUI";
 
 export default function TopBar({ onPrevious, onNext, onClose, toggleFullscreen, setShowInfo, image, showFilmstrip, idx, total, isFullscreen, editing, setEditing }: {
   onPrevious?: () => void,
@@ -66,6 +67,7 @@ export default function TopBar({ onPrevious, onNext, onClose, toggleFullscreen, 
           <path d="M12.5 9C12.5 9.27614 12.2761 9.5 12 9.5C11.7239 9.5 11.5 9.27614 11.5 9C11.5 8.72386 11.7239 8.5 12 8.5C12.2761 8.5 12.5 8.72386 12.5 9Z" fill="white" />
         </svg>
       </button>
+      <ItemsUI altStyle selectedItems={{ [image.path]: image }} deleteCallback={onClose} />
     </div>
     <div className="flex items-center space-x-1 h-9">
       <button

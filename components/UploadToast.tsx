@@ -5,6 +5,7 @@ import { uploadStatusAtom, abortControllerAtom } from '@/lib/atoms';
 import { useState } from "react";
 import LoadingSpinner from "./LoadingSpinner";
 import CloseIcon from "./icons/CloseIcon";
+import { createPortal } from 'react-dom';
 
 export default function UploadToast() {
   const [uploadStatus, setUploadStatus] = useAtom(uploadStatusAtom);
@@ -61,7 +62,7 @@ export default function UploadToast() {
         </div>
       )}
 
-      {showConfirm && (
+      {showConfirm && createPortal(
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-white/70 backdrop-blur-lg rounded-lg p-6 max-w-sm">
             <p className="text-black/50 mb-6 text-sm">
@@ -82,7 +83,8 @@ export default function UploadToast() {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </>
   );

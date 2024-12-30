@@ -48,8 +48,9 @@ export default function Login({ onLogin }: LoginProps) {
           </button>
         </form>
 
-        <div className="rotate-90 hidden">a</div>
-        <div className="rotate-180 hidden">b</div>
+        {/* Dummy divs for tailwind */}
+        <div className="rotate-90 hidden fill-[#fff] stroke-[#fff]">a</div>
+        <div className="rotate-180 hidden fill-[#888] stroke-[#888]">b</div>
         <div className="-rotate-90 hidden">c</div>
       </div>
     </div>
