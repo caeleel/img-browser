@@ -70,6 +70,11 @@ export default function Header({ breadcrumbs, onLogout = logout, updatePath, sea
               type="text"
               value={search}
               onChange={onSearch}
+              onKeyDown={(e) => {
+                if (e.key === 'a' && e.metaKey) {
+                  e.stopPropagation()
+                }
+              }}
               placeholder="Search images..."
               className="bg-white/5 w-64 px-2 py-1 pl-8 text-sm rounded-full border border-black/10 focus:outline-none focus:ring-1 focus:ring-black/50"
             />

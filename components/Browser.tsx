@@ -134,6 +134,22 @@ export default function Browser({
     return () => setShowFooter(false);
   }, [totalPages]);
 
+  useEffect(() => {
+    const keyboardHandler = (e: KeyboardEvent) => {
+      if (e.key === 'a' && e.metaKey) {
+        const newSelectedItems: { [key: string]: BucketItemWithBlob } = {};
+        contents.forEach(item => {
+          newSelectedItems[item.path] = item;
+        })
+        setSelectedItems(newSelectedItems)
+        e.preventDefault()
+      }
+    }
+
+    window.addEventListener('keydown', keyboardHandler);
+    return () => window.removeEventListener('keydown', keyboardHandler);
+  }, [contents])
+
   // Update URL when path or page changes
   const updateUrl = (newPage?: number, imagePath?: string) => {
     const params = new URLSearchParams(window.location.search);
@@ -180,17 +196,18 @@ export default function Browser({
   }, [searchParams, allContents]);
 
   return (
-    <div>
+    <div
+      className="w-full"
+      onClick={(e) => {
+        if (e.shiftKey) {
+          e.preventDefault()
+          return
+        }
+        setSelectedItems({})
+      }}
+    >
       <div className="hidden">{generation}</div>
-      <div
-        onClick={(e) => {
-          if (e.shiftKey) {
-            e.preventDefault()
-            return
-          }
-          setSelectedItems({})
-        }}
-      >
+      <div>
         {loading || delayedIsLoading ? (
           <FullscreenContainer>
             <LoadingSpinner size="large" />
