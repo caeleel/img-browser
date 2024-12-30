@@ -13,7 +13,8 @@ export async function GET(request: Request) {
   }
 
   const results = await sql`
-    SELECT * from favorites
+    SELECT f.id AS id, f.image_id AS image_id, f.created_at AS created_at, i.path AS path, i.name AS name from favorites f
+    JOIN image_metadata i ON f.image_id = i.id
     ORDER BY created_at DESC
   `;
 

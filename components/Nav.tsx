@@ -3,10 +3,16 @@
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
+import HeartIcon from './icons/HeartIcon';
 
 const NAV_ITEMS = [
   { label: 'Browse', href: '/' },
   { label: 'Search', href: '/search' },
+  {
+    label: 'Favorites',
+    href: '/favorites',
+    icon: <HeartIcon filled />
+  },
 ];
 
 export default function Nav() {
@@ -66,7 +72,7 @@ export default function Nav() {
         />
 
         {/* Nav items */}
-        {NAV_ITEMS.map(({ label, href }) => {
+        {NAV_ITEMS.map(({ label, href, icon }) => {
           const isActive = pathname === href ||
             (href === '/' && pathname === '') ||
             (href !== '/' && pathname?.startsWith(href));
@@ -77,11 +83,11 @@ export default function Nav() {
               href={href}
               ref={isActive ? activeLinkRef : undefined}
               className={`
-                px-4 py-1 text-sm rounded-full transition-colors relative
+                px-4 py-0.5 text-sm rounded-full transition-colors relative flex items-center gap-2
                 ${isActive ? 'text-black' : 'text-black/50 hover:text-black/70'}
               `}
             >
-              {label}
+              {icon || label}
             </Link>
           );
         })}

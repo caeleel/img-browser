@@ -1,5 +1,7 @@
 import router from "next/router";
 import { clearS3Cache, getCredentials, signedUrl } from "./s3";
+import { BucketItemWithBlob, Favorite } from "./types";
+import { favoritesAtom, globalStore } from "./atoms";
 
 export function blur(e: KeyboardEvent) {
   // eslint-disable-next-line @typescript-eslint/no-unused-expressions
@@ -26,12 +28,6 @@ export function logout() {
   router.push('/');
 }
 
-interface Favorite {
-  id: number
-  created_at: string
-  image_id: number
-}
-
 export async function getFavorites(): Promise<Favorite[]> {
   const credentials = getCredentials();
   const response = await fetch('/api/favorites', {
@@ -43,17 +39,24 @@ export async function getFavorites(): Promise<Favorite[]> {
   return response.json();
 }
 
-export async function toggleFavorites(ids: number[], favorite: boolean) {
+export async function toggleFavorites(images: BucketItemWithBlob[], favorite: boolean) {
   const credentials = getCredentials();
+  const ids = images.map(img => img.metadata!.id)
+  let success = false;
   if (favorite) {
-    return (await fetch('/api/favorites', {
+    success = (await fetch('/api/favorites', {
       method: 'POST',
       body: JSON.stringify({ ids, credentials }),
     })).ok;
   } else {
-    return (await fetch('/api/favorites', {
+    success = (await fetch('/api/favorites', {
       method: 'DELETE',
       body: JSON.stringify({ ids, credentials }),
     })).ok;
   }
+  if (!success) return false;
+
+  const newFavorites = await getFavorites();
+  globalStore.set(favoritesAtom, newFavorites);
+  return true;
 }

@@ -1,8 +1,8 @@
 'use client';
 
-import { useAtom } from 'jotai';
-import { selectedItemsAtom, allContentsAtom, favoritesAtom } from '@/lib/atoms';
-import { useState, useEffect } from "react";
+import { useAtom, useSetAtom } from 'jotai';
+import { selectedItemsAtom, allContentsAtom, favoritesAtom, useFavoriteIds } from '@/lib/atoms';
+import { useState, useEffect, useMemo } from "react";
 import TrashIcon from "./icons/TrashIcon";
 import HeartIcon from "./icons/HeartIcon";
 import { deleteFileWithMetadata } from '@/lib/db';
@@ -15,7 +15,8 @@ export default function SelectedItemsUI() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [isTogglingFavorite, setIsTogglingFavorite] = useState(false);
   const [allContents, setAllContents] = useAtom(allContentsAtom);
-  const [favoriteStatus, setFavoriteStatus] = useAtom(favoritesAtom);
+  const setFavoriteStatus = useSetAtom(favoritesAtom);
+  const favoriteIds = useFavoriteIds();
 
   // Filter to only images
   const selectedImages = Object.values(selectedItems).filter(item => item.type === 'image');
@@ -25,7 +26,7 @@ export default function SelectedItemsUI() {
   useEffect(() => {
     const checkFavorites = async () => {
       const favorites = await getFavorites();
-      setFavoriteStatus(new Set(favorites.map(f => f.image_id)));
+      setFavoriteStatus(favorites);
     };
 
     checkFavorites();
@@ -47,37 +48,28 @@ export default function SelectedItemsUI() {
     }
   };
 
-  const allFavorited = selectedImages.every(img =>
-    img.metadata?.id && favoriteStatus.has(img.metadata.id)
-  ) && selectedImages.length > 0;
+  const allFavorited = useMemo(() => {
+    return selectedImages.every(img =>
+      img.metadata?.id && favoriteIds.has(img.metadata.id)
+    ) && selectedImages.length > 0;
+  }, [selectedImages, favoriteIds]);
 
   const handleToggleFavorite = async (e: React.MouseEvent<HTMLButtonElement>) => {
     e.stopPropagation();
     setIsTogglingFavorite(true);
 
     try {
-      const ids = selectedImages
-        .map(img => img.metadata?.id)
-        .filter((id): id is number => id !== undefined);
+      const images = selectedImages
+        .filter((image) => image.metadata?.id !== undefined)
 
-      if (ids.length === 0) return;
+      if (images.length === 0) return
+      const ids = images.map(img => img.metadata!.id)
 
       // If any selected image is not favorited, favorite all. Otherwise, unfavorite all
-      const shouldFavorite = ids.some(id => !favoriteStatus.has(id));
-      const success = await toggleFavorites(ids, shouldFavorite);
+      const shouldFavorite = ids.some(id => !favoriteIds.has(id))
+      const success = await toggleFavorites(images, shouldFavorite)
       if (!success) return;
 
-      setFavoriteStatus(prev => {
-        const next = new Set(prev);
-        ids.forEach(id => {
-          if (shouldFavorite) {
-            next.add(id);
-          } else {
-            next.delete(id);
-          }
-        });
-        return next;
-      });
     } catch (error) {
       console.error('Error toggling favorites:', error);
     } finally {

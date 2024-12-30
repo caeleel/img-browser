@@ -50,3 +50,11 @@ export interface Vector2 {
   x: number;
   y: number;
 }
+
+export interface Favorite {
+  id: number;
+  image_id: number;
+  created_at: string;
+  path: string;
+  name: string;
+}

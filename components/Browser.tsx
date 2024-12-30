@@ -180,11 +180,11 @@ export default function Browser({ allContents, pageSize = PAGE_SIZE, updatePath 
             <LoadingSpinner size="large" />
           </FullscreenContainer>
         ) : contents.length === 0 ? (
-          <div className="flex flex-col flex-grow justify-center items-center">
-            <div className="text-center text-gray-600">
+          <FullscreenContainer>
+            <div className="text-center text-black/50">
               This page is empty
             </div>
-          </div>
+          </FullscreenContainer>
         ) : (
           <div className="pb-20 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 max-w-7xl p-8 mx-auto">
             {contents.map((item) => (
