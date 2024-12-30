@@ -6,7 +6,6 @@ import { Provider, useAtomValue } from 'jotai';
 import UploadToast from '@/components/UploadToast';
 import { globalStore, showFooterAtom, useLoadCredentials } from "@/lib/atoms";
 import Nav from "@/components/Nav";
-import SelectedItemsUI from '@/components/SelectedItemsUI';
 import FullscreenContainer from "@/components/FullscreenContainer";
 import LoadingSpinner from "@/components/LoadingSpinner";
 
