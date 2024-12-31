@@ -35,6 +35,7 @@ function ImageTile({ item }: {
       <img
         src={blobUrl}
         alt={item.name}
+        draggable={false}
         className={`w-full h-64 object-cover ${rotation}`}
       />
       {item.metadata?.similarity && (
