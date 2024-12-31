@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import VideoPlayer from './VideoPlayer';
 import ImageViewer from './ImageViewer';
@@ -10,9 +10,37 @@ import type { BucketItem, BucketItemWithBlob } from '@/lib/types';
 import { ItemTile } from './ItemTile';
 import { fetchMetadata } from '@/lib/db';
 import LoadingSpinner from './LoadingSpinner';
-import { useSetAtom } from 'jotai';
+import { useSetAtom, useAtom } from 'jotai';
 import { showFooterAtom, selectedItemsAtom } from '@/lib/atoms';
 import FullscreenContainer from './FullscreenContainer';
+
+interface SelectionBox {
+  startX: number;
+  startY: number;
+  endX: number;
+  endY: number;
+}
+
+function getSelectionRect(selection: SelectionBox) {
+  return {
+    left: Math.min(selection.startX, selection.endX),
+    top: Math.min(selection.startY, selection.endY),
+    width: Math.abs(selection.endX - selection.startX),
+    height: Math.abs(selection.endY - selection.startY),
+  };
+}
+
+function isElementInSelection(element: Element, selection: SelectionBox) {
+  const rect = element.getBoundingClientRect();
+  const selectionRect = getSelectionRect(selection);
+
+  return !(
+    rect.right < selectionRect.left ||
+    rect.left > selectionRect.left + selectionRect.width ||
+    rect.bottom < selectionRect.top ||
+    rect.top > selectionRect.top + selectionRect.height
+  );
+}
 
 const PAGE_SIZE = 24;
 
@@ -48,7 +76,11 @@ export default function Browser({
   const [delayedIsLoading, setDelayedIsLoading] = useState(true);
 
   const setShowFooter = useSetAtom(showFooterAtom);
-  const setSelectedItems = useSetAtom(selectedItemsAtom);
+  const [selectedItems, setSelectedItems] = useAtom(selectedItemsAtom);
+
+  const [isDragging, setIsDragging] = useState(false);
+  const [selection, setSelection] = useState<SelectionBox | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setTimeout(() => setDelayedIsLoading(loading), 10)
@@ -195,16 +227,73 @@ export default function Browser({
     }
   }, [searchParams, allContents]);
 
+  const handleMouseDown = (e: React.MouseEvent) => {
+    // Only start selection on left click and when not clicking an interactive element
+    if (e.button !== 0 || (e.target as HTMLElement).closest('button, a')) return;
+
+    const rect = containerRef.current?.getBoundingClientRect();
+    if (!rect) return;
+
+    const startX = e.clientX;
+    const startY = e.clientY;
+
+    setIsDragging(true);
+    setSelection({
+      startX,
+      startY,
+      endX: startX,
+      endY: startY,
+    });
+
+    // If not holding shift, clear existing selection
+    if (!e.shiftKey) {
+      setSelectedItems({});
+    }
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!isDragging || !selection) return;
+
+    setSelection({
+      ...selection,
+      endX: e.clientX,
+      endY: e.clientY,
+    });
+
+    // Find all ItemTiles that intersect with selection
+    const tiles = containerRef.current?.querySelectorAll('[data-item-tile]');
+    if (!tiles) return;
+
+    const newSelectedItems = e.shiftKey ? { ...selectedItems } : {};
+
+    tiles.forEach((tile) => {
+      const path = tile.getAttribute('data-path');
+      const item = contents.find(item => item.path === path);
+      if (!item) return;
+
+      if (isElementInSelection(tile, selection)) {
+        newSelectedItems[item.path] = item;
+      } else if (!e.shiftKey) {
+        // Only remove items if not holding shift
+        delete newSelectedItems[item.path];
+      }
+    });
+
+    setSelectedItems(newSelectedItems);
+  }
+
+  const handleMouseUp = () => {
+    setIsDragging(false);
+    setSelection(null);
+  }
+
   return (
     <div
-      className="w-full"
-      onClick={(e) => {
-        if (e.shiftKey) {
-          e.preventDefault()
-          return
-        }
-        setSelectedItems({})
-      }}
+      ref={containerRef}
+      className="w-full relative"
+      onMouseDown={handleMouseDown}
+      onMouseMove={handleMouseMove}
+      onMouseUp={handleMouseUp}
     >
       <div className="hidden">{generation}</div>
       <div>
@@ -296,6 +385,16 @@ export default function Browser({
           onClose={() => {
             URL.revokeObjectURL(selectedVideo.signedUrl!);
             setSelectedVideo(null);
+          }}
+        />
+      )}
+
+      {selection && (
+        <div
+          className="fixed pointer-events-none border border-sky-600 bg-sky-600 bg-opacity-10"
+          style={{
+            ...getSelectionRect(selection),
+            position: 'fixed',
           }}
         />
       )}

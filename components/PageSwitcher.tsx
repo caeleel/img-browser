@@ -43,7 +43,7 @@ export default function PageSwitcher({ currentPage, visible, totalPages, handleP
           key={page}
           ref={page === currentPage ? currentPageRef : undefined}
           onClick={() => handlePageChange(page)}
-          className={`text-xs text-black h-5 px-1 rounded ${currentPage === page
+          className={`text-xs text-black h-5 px-1 rounded select-none ${currentPage === page
             ? 'font-bold bg-black/10'
             : 'text-neutral-700 hover:bg-black/5'
             }`}

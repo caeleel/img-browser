@@ -9,7 +9,7 @@ function DirectoryTile({ item }: {
   item: BucketItemWithBlob,
 }) {
   return (
-    <div className="p-4 text-left text-black/50 text-sm group-hover:text-black">
+    <div className="p-4 text-left text-black/50 text-sm group-hover:text-black select-none">
       📁 {item.name}
     </div>
   )
@@ -57,7 +57,7 @@ function VideoTile({ item, loadingVideo }: {
   }
 
   return (
-    <div className="p-4 text-left text-sm text-black/50">
+    <div className="p-4 text-left text-sm text-black/50 select-none">
       🎥 {item.name}
     </div>
   )
@@ -137,8 +137,10 @@ export function ItemTile({ item, handleDirectoryClick, handleVideoClick, handleI
   }
 
   return <button
+    data-item-tile
+    data-path={item.path}
     onClick={handleClick}
-    className={`w-full h-64 relative cursor-default flex items-center bg-black/5 hover:border-black border-4 justify-center ${isSelected ? 'border-black' : 'border-white'} overflow-hidden group`}
+    className={`w-full h-64 relative cursor-default flex items-center bg-black/5 hover:border-black border-4 justify-center ${isSelected ? 'border-black' : 'border-white'} overflow-hidden group select-none`}
   >
     {innerTile()}
   </button>
