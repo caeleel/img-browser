@@ -160,7 +160,7 @@ export default function BucketBrowser({ onLogout }: { onLogout: () => void }) {
 
     e.preventDefault();
     setIsDragging(true);
-  }, []);
+  }, [currentPath]);
 
   const handleDragLeave = useCallback((e: React.DragEvent) => {
     // Only set dragging false if we're leaving the container
