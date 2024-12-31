@@ -61,6 +61,7 @@ export function MetadataEditor({ metadata, credentials, editing, setEditing, sho
           />
         ) : (
           <div
+            onMouseDown={(e) => e.stopPropagation()}
             onClick={() => setEditing(field)}
             className={`cursor-pointer hover:text-white bg-white/10 hover:bg-white/10 ${width} rounded px-2 py-1 min-h-6 text-xs`}
           >
@@ -110,6 +111,7 @@ export function MetadataEditor({ metadata, credentials, editing, setEditing, sho
       className="bg-black bg-opacity-50 px-2 py-1 rounded w-full h-24"
       autoFocus
     /> : <div
+      onMouseDown={(e) => e.stopPropagation()}
       onClick={() => setEditing(field)}
       className="w-full h-24 text-gray-300 text-xs bg-white/10 rounded px-2 py-1 hover:bg-white/10 whitespace-pre-wrap"
     >
