@@ -3,6 +3,9 @@ import exifr from "exifr";
 import { getImageEmbedding } from "./embeddings";
 import { uploadStatusAtom, abortControllerAtom, globalStore } from './atoms';
 
+export const IMAGE_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.gif', '.webp'];
+export const VIDEO_EXTENSIONS = ['.mp4', '.ts', '.mov'];
+
 let heic2any: (options: {
   blob: Blob;
   multiple?: true;
@@ -210,12 +213,11 @@ async function processFiles(
             const processedFile = await convertHeicToJpeg(file);
 
             // Read EXIF data
-            const arrayBuffer = await processedFile.arrayBuffer();
-            const originalBuffer = await file.arrayBuffer();
             let exif: { [key: string]: string | number | null } | undefined;
 
             if (!fileIsVideo) {
               try {
+                const originalBuffer = await file.arrayBuffer();
                 exif = await exifr.parse(originalBuffer);
               } catch (error) {
                 console.warn(`Error parsing EXIF data for ${path}:`, error);
@@ -240,7 +242,7 @@ async function processFiles(
             // Upload original
             await uploadFile(
               filePath,
-              new Blob([arrayBuffer], { type: processedFile.type })
+              processedFile
             );
 
             return {

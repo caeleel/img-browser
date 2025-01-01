@@ -2,19 +2,17 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { listContents, ROOT_CONTENTS } from '@/lib/s3';
+import { listContents, ROOT_PATH } from '@/lib/s3';
 import type { BucketItem, BucketItemWithBlob } from '@/lib/types';
 import Header from './Header';
 import DragTarget from './DragTarget';
-import { processDataTransfer } from '@/lib/upload';
+import { IMAGE_EXTENSIONS, processDataTransfer, VIDEO_EXTENSIONS } from '@/lib/upload';
 import { useAtom } from 'jotai';
 import { allContentsAtom } from '@/lib/atoms';
 import Browser from './Browser';
 import SelectedItemsUI from './SelectedItemsUI';
-const IMAGE_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.gif', '.webp'];
-const VIDEO_EXTENSIONS = ['.mp4', '.ts', '.mov'];
 
-let directoryPath = '';
+let directoryPath = `${ROOT_PATH}/`;
 let currentPage = 1;
 
 export default function BucketBrowser({ onLogout }: { onLogout: () => void }) {
@@ -81,13 +79,7 @@ export default function BucketBrowser({ onLogout }: { onLogout: () => void }) {
 
   useEffect(() => {
     directoryPath = currentPath
-
-    if (currentPath === '') {
-      setAllContents(ROOT_CONTENTS)
-      setLoading(false)
-    } else {
-      fetchContents()
-    }
+    fetchContents()
 
     return () => cleanupBlobUrls(allContents)
   }, [currentPath]);
@@ -108,7 +100,6 @@ export default function BucketBrowser({ onLogout }: { onLogout: () => void }) {
   }, [searchParams]);
 
   const breadcrumbs = [
-    { name: 'root', path: '' },
     ...currentPath.split('/').filter(Boolean).map((part, index, array) => ({
       name: part,
       path: array.slice(0, index + 1).join('/') + '/'

@@ -4,6 +4,7 @@ import LoadingSpinner from "./LoadingSpinner";
 import { useAtom } from "jotai";
 import { selectedItemsAtom } from "@/lib/atoms";
 import { useEffect } from "react";
+import CameraIcon from "./icons/CameraIcon";
 
 function DirectoryTile({ item }: {
   item: BucketItemWithBlob,
@@ -32,6 +33,7 @@ function ImageTile({ item }: {
 
   return (
     <>
+      {item.type === 'video' && <div className="absolute top-2 right-2"><CameraIcon /></div>}
       <img
         src={blobUrl}
         alt={item.name}

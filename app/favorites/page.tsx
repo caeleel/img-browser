@@ -2,7 +2,7 @@
 
 import { Suspense, useEffect, useState } from 'react';
 import { BucketItemWithBlob } from '@/lib/types';
-import { getThumbnailUrl } from '@/lib/utils';
+import { getFileType, getThumbnailUrl } from '@/lib/utils';
 import Browser from '@/components/Browser';
 import Header from '@/components/Header';
 import FullscreenContainer from '@/components/FullscreenContainer'
@@ -29,7 +29,7 @@ function FavoritesInner() {
       try {
         const newItems: BucketItemWithBlob[] = await Promise.all(
           favorites.map(async (favorite) => ({
-            type: 'image' as const,
+            type: getFileType(favorite.path),
             name: favorite.name,
             path: favorite.path,
             thumbnailBlobUrl: await getThumbnailUrl(favorite.path),

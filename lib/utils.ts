@@ -3,10 +3,16 @@ import { clearS3Cache, getCredentials, signedUrl } from "./s3";
 import { BucketItemWithBlob, Favorite } from "./types";
 import { favoritesAtom, globalStore } from "./atoms";
 import JSZip from 'jszip';
+import { IMAGE_EXTENSIONS } from "./upload";
 
 export function blur(e: KeyboardEvent) {
   // eslint-disable-next-line @typescript-eslint/no-unused-expressions
   (e.target as HTMLElement)?.blur ? (e.target as HTMLElement).blur() : null;
+}
+
+export function getFileType(path: string): 'image' | 'video' {
+  const ext = path.split('.').pop()?.toLowerCase();
+  return IMAGE_EXTENSIONS.includes(`.${ext}`) ? 'image' : 'video';
 }
 
 export function getCssOrientation(orientation: number) {

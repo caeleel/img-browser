@@ -1,6 +1,6 @@
 import { S3Client, GetObjectCommand, ListObjectsV2Command, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
-import { BucketItemWithBlob, S3Response } from './types';
+import { S3Response } from './types';
 
 const BUCKET_NAME = 'terencefischer';
 const REGION = 'sfo3';
@@ -8,11 +8,7 @@ const ENDPOINT = 'https://sfo3.digitaloceanspaces.com';
 
 let cachedS3Client: S3Client | null = null;
 
-export const ROOT_CONTENTS: BucketItemWithBlob[] = [
-  { type: 'directory', name: 'photos', path: 'photos/' },
-  { type: 'directory', name: 'videos', path: 'videos/' },
-];
-const ROOT_PATHS = ROOT_CONTENTS.map(item => item.path.slice(0, -1));
+export const ROOT_PATH = 'photos';
 
 export function getCredentials() {
   if (typeof window === 'undefined') {
@@ -76,7 +72,7 @@ export async function listContents(path: string, continuationToken?: string): Pr
   const s3Client = getS3Client();
 
   const firstDir = path.split('/')[0];
-  if (!ROOT_PATHS.includes(firstDir)) {
+  if (firstDir !== ROOT_PATH) {
     throw new Error('Invalid path');
   }
 

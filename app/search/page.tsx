@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, Suspense } from 'react';
 import { BucketItemWithBlob, ImageMetadata } from '@/lib/types';
 import { useRouter, useSearchParams } from 'next/navigation';
 import debounce from 'lodash.debounce';
-import { getThumbnailUrl } from '@/lib/utils';
+import { getFileType, getThumbnailUrl } from '@/lib/utils';
 import Header from '@/components/Header';
 import FullscreenContainer from '@/components/FullscreenContainer';
 import Browser from '@/components/Browser';
@@ -79,14 +79,17 @@ function SearchPageInner() {
       }
 
       const data = await response.json();
+
       const newItems: BucketItemWithBlob[] = await Promise.all(
-        data.results.map(async (result: ImageMetadata) => ({
-          type: 'image',
-          name: result.name,
-          path: result.path,
-          thumbnailBlobUrl: await getThumbnailUrl(result.path),
-          metadata: result,
-        }))
+        data.results.map(async (result: ImageMetadata) => {
+          return {
+            type: getFileType(result.path),
+            name: result.name,
+            path: result.path,
+            thumbnailBlobUrl: await getThumbnailUrl(result.path),
+            metadata: result,
+          }
+        })
       );
       setItems(newItems);
     } catch (error) {

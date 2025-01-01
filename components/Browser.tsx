@@ -287,7 +287,7 @@ export default function Browser({
   return (
     <div
       ref={containerRef}
-      className="w-full relative min-h-[calc(100svh-48px)]"
+      className="w-full relative lg:min-h-[calc(100svh-48px)] min-h-[calc(100svh-84px)]"
       onMouseDown={handleMouseDown}
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
