@@ -2,7 +2,7 @@
 
 import { useEffect, useCallback, useState, useRef, useMemo } from 'react';
 import { BucketItemWithBlob, S3Credentials, Vector2 } from '@/lib/types';
-import { fetchFile } from '@/lib/s3';
+import { fetchFile, signedUrl } from '@/lib/s3';
 import { fetchMetadata } from '@/lib/db';
 import { blur } from '@/lib/utils';
 import { MetadataEditor } from './MetadataEditor';
@@ -11,6 +11,7 @@ import Carousel from './Carousel';
 import { Minimap } from './Minimap';
 import TopBar from './TopBar';
 import LoadingSpinner from './LoadingSpinner';
+import VideoPlayer from './VideoPlayer';
 
 let lastScale = 1;
 let lastPosition = { x: 0, y: 0 };
@@ -33,7 +34,7 @@ export default function ImageViewer({
   credentials: S3Credentials
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const imageRef = useRef<HTMLImageElement>(null);
+  const imageRef = useRef<HTMLImageElement & HTMLVideoElement>(null);
   const image = allImages[idx];
   const [showInfo, setShowInfo] = useState(false);
   const [showFilmstrip, setShowFilmstrip] = useState(true);
@@ -93,7 +94,7 @@ export default function ImageViewer({
 
       if (!image.blobUrl) {
         try {
-          const blobUrl = await fetchFile(image.path);
+          const blobUrl = image.type === 'video' ? await signedUrl(image.path) : await fetchFile(image.path);
           image.blobUrl = blobUrl;
           setGeneration(prev => prev + 1);
         } catch (error) {
@@ -266,18 +267,18 @@ export default function ImageViewer({
   useEffect(() => {
     lastScale = scale;
     const container = containerRef.current;
-    if (container) {
+    if (container && image.type !== 'video') {
       container.addEventListener('wheel', handleWheel, { passive: false });
     }
 
     document.addEventListener('keydown', handleKeyDown);
     return () => {
       document.removeEventListener('keydown', handleKeyDown);
-      if (container) {
+      if (container && image.type !== 'video') {
         container.removeEventListener('wheel', handleWheel);
       }
     };
-  }, [imageRef, idx, editing]);
+  }, [imageRef, idx, editing, image]);
 
   return (
     <div ref={containerRef} className="fixed h-screen inset-0 bg-white z-50 flex flex-col">
@@ -299,7 +300,9 @@ export default function ImageViewer({
       {/* Main content */}
       <div className={`${showFilmstrip ? 'mt-4' : ''} flex-1 flex flex-col w-full items-center justify-center relative transition-all duration-300 overflow-hidden`}>
         {/* Image container */}
-        {image.blobUrl ? (
+        {image.type === 'video' && image.blobUrl ? (
+          <VideoPlayer key={image.path} video={image} />
+        ) : image.blobUrl ? (
           <>
             <img
               ref={imageRef}

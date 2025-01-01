@@ -27,7 +27,15 @@ export type UploadStatus = {
 const BATCH_SIZE = 20;
 const BASE_PATH = 'photos';
 
+function isVideo(file: File): boolean {
+  return file.type.startsWith('video/') || file.name.toLowerCase().endsWith('.mov');
+}
+
 async function createThumbnail(file: File): Promise<Blob> {
+  if (isVideo(file)) {
+    return await extractVideoThumbnail(file);
+  }
+
   const MAX_SIZE = 800;
 
   // Create image element
@@ -114,6 +122,26 @@ async function convertHeicToJpeg(file: File): Promise<File> {
   }
 }
 
+interface ProcessedImage {
+  path: string;
+  name: string;
+  taken_at: string | number | null;
+  latitude: string | number | null;
+  longitude: string | number | null;
+  city: string | null;
+  state: string | null;
+  country: string | null;
+  embedding: number[];
+  camera_make?: string | number | null;
+  camera_model?: string | number | null;
+  lens_model?: string | number | null;
+  aperture?: string | number | null;
+  iso?: string | number | null;
+  shutter_speed?: string | number | null;
+  focal_length?: string | number | null;
+  orientation?: number;
+}
+
 async function processFiles(
   fileMap: { [path: string]: File },
   setStatus: (status: UploadStatus) => void,
@@ -122,7 +150,9 @@ async function processFiles(
   const files: { [path: string]: File } = {};
   for (const path in fileMap) {
     const file = fileMap[path];
-    if (file.type.startsWith('image/') || file.name.toLowerCase().endsWith('.heic') || file.name.toLowerCase().endsWith('.heif')) {
+    if (file.type.startsWith('image/') || isVideo(file) ||
+      file.name.toLowerCase().endsWith('.heic') || file.name.toLowerCase().endsWith('.heif')
+    ) {
       files[path] = file;
     }
   }
@@ -168,38 +198,50 @@ async function processFiles(
       status.currentBatch = newBatchPaths;
       setStatus({ ...status });
 
-      const batchMetadata = await Promise.all(
-        newBatchPaths.map(async (path) => {
+      const imagePromises: Promise<ProcessedImage | null>[] = []
+
+      for (const path of newBatchPaths) {
+        const file = files[path];
+        const fileIsVideo = isVideo(file);
+
+        const imagePromiseFunc = async () => {
           try {
-            const file = files[path];
             // Convert HEIC to JPEG if necessary
             const processedFile = await convertHeicToJpeg(file);
 
             // Read EXIF data
             const arrayBuffer = await processedFile.arrayBuffer();
             const originalBuffer = await file.arrayBuffer();
-            const exif = await exifr.parse(originalBuffer);
+            let exif: { [key: string]: string | number | null } | undefined;
+
+            if (!fileIsVideo) {
+              try {
+                exif = await exifr.parse(originalBuffer);
+              } catch (error) {
+                console.warn(`Error parsing EXIF data for ${path}:`, error);
+              }
+            }
 
             // Create thumbnail
-            const thumbnail = await createThumbnail(processedFile);
             const basePath = path.split('/').slice(0, -1).join('/');
             const filePath = `${basePath}/${processedFile.name}`;
-            const thumbnailPath = filePath.replace(`${BASE_PATH}/`, 'thumbnails/');
 
-            // Upload original
-            await uploadFile(
-              filePath,
-              new Blob([arrayBuffer], { type: processedFile.type })
-            );
+            const thumbnailPath = filePath.replace(`${BASE_PATH}/`, 'thumbnails/');
+            const thumbnail = await createThumbnail(processedFile);
 
             // Upload thumbnail
             await uploadFile(
               thumbnailPath,
               thumbnail
             );
-
             // Get the image embedding using the newly created thumbnail
             const embedding = await getImageEmbedding(thumbnail);
+
+            // Upload original
+            await uploadFile(
+              filePath,
+              new Blob([arrayBuffer], { type: processedFile.type })
+            );
 
             return {
               path: filePath,
@@ -224,8 +266,16 @@ async function processFiles(
             console.error(`Error processing ${path}:`, error);
             return null;
           }
-        })
-      );
+        }
+
+        if (fileIsVideo) {
+          imagePromises.push(Promise.resolve(await imagePromiseFunc()));
+        } else {
+          imagePromises.push(imagePromiseFunc());
+        }
+      }
+
+      const batchMetadata = await Promise.all(imagePromises);
 
       // Update metadata in database
       const validMetadata = batchMetadata.filter(Boolean);
@@ -344,4 +394,56 @@ export async function processDataTransfer(
   }
 
   await processFiles(files, setStatus, abortController);
+}
+
+async function extractVideoThumbnail(file: File, seekTo = 0.0): Promise<Blob> {
+  return new Promise((resolve, reject) => {
+    // load the file to a video player
+    const videoPlayer = document.createElement('video');
+    const srcTag = document.createElement('source');
+    srcTag.setAttribute('src', URL.createObjectURL(file));
+    srcTag.setAttribute('type', 'video/mp4');
+    videoPlayer.appendChild(srcTag);
+    videoPlayer.load();
+    videoPlayer.addEventListener('error', (ex) => {
+      reject(`error when loading video file: ${ex}`);
+    });
+    // load metadata of the video to get video duration and dimensions
+    videoPlayer.addEventListener('loadedmetadata', () => {
+      // seek to user defined timestamp (in seconds) if possible
+      if (videoPlayer.duration < seekTo) {
+        reject("video is too short.");
+        return;
+      }
+      // delay seeking or else 'seeked' event won't fire on Safari
+      setTimeout(() => {
+        videoPlayer.currentTime = seekTo;
+      }, 100);
+      // extract video thumbnail once seeking is complete
+      videoPlayer.addEventListener('seeked', () => {
+        // define a canvas to have the same dimension as the video
+        const canvas = document.createElement("canvas");
+        canvas.width = videoPlayer.videoWidth;
+        canvas.height = videoPlayer.videoHeight;
+        // draw the video frame to canvas
+        const ctx = canvas.getContext("2d");
+        if (!ctx) {
+          reject("error when getting canvas context");
+          return;
+        }
+        ctx.drawImage(videoPlayer, 0, 0, canvas.width, canvas.height);
+        // return the canvas image as a blob
+        ctx.canvas.toBlob(
+          blob => {
+            resolve(blob!);
+          },
+          "image/jpeg",
+          0.75 /* quality */
+        );
+
+        videoPlayer.remove()
+        canvas.remove()
+      });
+    });
+  });
 }

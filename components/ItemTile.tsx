@@ -49,27 +49,10 @@ function ImageTile({ item }: {
   );
 }
 
-function VideoTile({ item, loadingVideo }: {
-  item: BucketItemWithBlob,
-  loadingVideo: string,
-}) {
-  if (loadingVideo === item.path) {
-    return <LoadingSpinner />
-  }
-
-  return (
-    <div className="p-4 text-left text-sm text-black/50 select-none">
-      🎥 {item.name}
-    </div>
-  )
-}
-
-export function ItemTile({ item, handleDirectoryClick, handleVideoClick, handleImageClick, loadingVideo }: {
+export function ItemTile({ item, handleDirectoryClick, handleImageClick }: {
   item: BucketItemWithBlob,
   handleDirectoryClick: (path: string) => void,
-  handleVideoClick: (item: BucketItemWithBlob) => void,
   handleImageClick: (item: BucketItemWithBlob) => void,
-  loadingVideo: string
 }) {
   const [selectedItems, setSelectedItems] = useAtom(selectedItemsAtom)
   const isSelected = selectedItems[item.path] !== undefined
@@ -95,7 +78,7 @@ export function ItemTile({ item, handleDirectoryClick, handleVideoClick, handleI
           handleImageClick(item)
           break
         case 'video':
-          handleVideoClick(item)
+          handleImageClick(item)
           break
       }
 
@@ -128,9 +111,8 @@ export function ItemTile({ item, handleDirectoryClick, handleVideoClick, handleI
           item={item}
         />
       case 'video':
-        return <VideoTile
+        return <ImageTile
           item={item}
-          loadingVideo={loadingVideo}
         />
       default:
         return null

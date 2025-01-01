@@ -2,11 +2,10 @@
 
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import VideoPlayer from './VideoPlayer';
 import ImageViewer from './ImageViewer';
 import PageSwitcher from './PageSwitcher';
 import { getCredentials, signedUrl } from '@/lib/s3';
-import type { BucketItem, BucketItemWithBlob } from '@/lib/types';
+import type { BucketItemWithBlob } from '@/lib/types';
 import { ItemTile } from './ItemTile';
 import { fetchMetadata } from '@/lib/db';
 import LoadingSpinner from './LoadingSpinner';
@@ -62,12 +61,10 @@ export default function Browser({
   const router = useRouter();
   const searchParams = useSearchParams();
   const [contents, setContents] = useState<BucketItemWithBlob[]>([]);
-  const [selectedVideo, setSelectedVideo] = useState<BucketItem | null>(null);
-  const [loadingVideo, setLoadingVideo] = useState('');
   const [currentPage, setCurrentPage] = useState(parseInt(searchParams.get('page') || '1'));
   const credentials = getCredentials();
 
-  const allImages = useMemo(() => allContents.filter(item => item.type === 'image'), [allContents]);
+  const allImages = useMemo(() => allContents.filter(item => item.type === 'image' || item.type === 'video'), [allContents]);
 
   const [viewerImageIndex, setViewerImageIndex] = useState<number | null>(null);
   const selectedImage = viewerImageIndex !== null ? allImages[viewerImageIndex] : null;
@@ -91,7 +88,7 @@ export default function Browser({
   }, [allContents, currentPage]);
 
   const fetchAllImages = async (items: BucketItemWithBlob[]) => {
-    const imageItems = items.filter(item => item.type === 'image' && !item.blobUrl);
+    const imageItems = items.filter(item => (item.type === 'image' || item.type === 'video') && !item.blobUrl);
 
     try {
       const paths = imageItems.filter(item => !item.metadata).map(item => item.path)
@@ -308,25 +305,13 @@ export default function Browser({
             </div>
           </FullscreenContainer>
         ) : (
-          <div className="pb-20 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 max-w-7xl p-8 mx-auto">
+          <div className="pb-20 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 max-w-7xl p-8 mx-auto">
             {contents.map((item) => (
               <ItemTile
                 key={item.path}
                 item={item}
                 handleDirectoryClick={updatePath}
-                handleVideoClick={async () => {
-                  try {
-                    setLoadingVideo(item.path);
-                    const url = await signedUrl(item.path);
-                    setSelectedVideo({ ...item, signedUrl: url });
-                  } catch (error) {
-                    console.error('Failed to load video', error);
-                  } finally {
-                    setLoadingVideo('');
-                  }
-                }}
                 handleImageClick={(item) => setNextImage(allImages.findIndex(img => img.path === item.path))}
-                loadingVideo={loadingVideo}
               />
             ))}
           </div>
@@ -375,16 +360,6 @@ export default function Browser({
             if (prevIndex >= 0) {
               setNextImage(prevIndex);
             }
-          }}
-        />
-      )}
-
-      {selectedVideo && (
-        <VideoPlayer
-          video={selectedVideo as { name: string; signedUrl: string }}
-          onClose={() => {
-            URL.revokeObjectURL(selectedVideo.signedUrl!);
-            setSelectedVideo(null);
           }}
         />
       )}

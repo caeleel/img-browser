@@ -7,9 +7,10 @@ import TrashIcon from "./icons/TrashIcon";
 import HeartIcon from "./icons/HeartIcon";
 import { deleteFileWithMetadata } from '@/lib/db';
 import LoadingSpinner from './LoadingSpinner';
-import { toggleFavorites } from '@/lib/utils';
+import { downloadFiles, toggleFavorites } from '@/lib/utils';
 import { BucketItemWithBlob } from '@/lib/types';
 import { createPortal } from 'react-dom';
+import DownloadIcon from './icons/DownloadIcon';
 
 export default function SelectedItemsUI({ deleteCallback }: { deleteCallback: (items: BucketItemWithBlob[]) => void }) {
   const [selectedItems, setSelectedItems] = useAtom(selectedItemsAtom);
@@ -28,12 +29,13 @@ export function ItemsUI({ selectedItems, deleteCallback, altStyle }: {
   const [showConfirm, setShowConfirm] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isTogglingFavorite, setIsTogglingFavorite] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
   const [allContents, setAllContents] = useAtom(allContentsAtom);
   const favoriteIds = useFavoriteIds();
   const credentials = useAtomValue(credentialsAtom);
 
   // Filter to only images
-  const selectedImages = Object.values(selectedItems).filter(item => item.type === 'image');
+  const selectedImages = Object.values(selectedItems).filter(item => item.type === 'image' || item.type === 'video');
   const isShown = selectedImages.length > 0;
 
   useLoadFavorites()
@@ -83,6 +85,14 @@ export function ItemsUI({ selectedItems, deleteCallback, altStyle }: {
     }
   };
 
+  const handleDownload = async (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.stopPropagation();
+
+    setIsDownloading(true);
+    await downloadFiles(selectedImages.map(img => img.path));
+    setIsDownloading(false);
+  };
+
   if (!credentials) return null;
 
   return (
@@ -106,6 +116,20 @@ export function ItemsUI({ selectedItems, deleteCallback, altStyle }: {
               </div>
             ) : (
               <HeartIcon filled={allFavorited} flipOnHover color={altStyle ? '#fff' : '#888'} size={altStyle ? 20 : 24} />
+            )}
+          </button>
+          <button
+            onClick={handleDownload}
+            className={altStyle ? 'rounded hover:bg-white/10 group p-0.5' : "py-0.5 px-4 hover:bg-white hover:shadow-sm rounded-full group"}
+            title="Download selected items"
+            disabled={isDownloading}
+          >
+            {isDownloading ? (
+              <div className={altStyle ? "h-5 w-5" : "h-6 w-6"}>
+                <LoadingSpinner size="small" light={altStyle} />
+              </div>
+            ) : (
+              <DownloadIcon color={altStyle ? '#fff' : '#888'} size={altStyle ? 20 : 24} />
             )}
           </button>
           <button
