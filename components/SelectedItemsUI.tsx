@@ -104,6 +104,20 @@ export function ItemsUI({ selectedItems, deleteCallback, altStyle }: {
           {!altStyle && <div className="px-6">
             <p className="text-sm text-black/50">{selectedImages.length} selected</p>
           </div>}
+          {!altStyle && <button
+            onClick={handleDownload}
+            className={altStyle ? 'rounded hover:bg-white/10 group p-0.5' : "py-0.5 px-4 hover:bg-white hover:shadow-sm rounded-full group"}
+            title="Download selected items"
+            disabled={isDownloading}
+          >
+            {isDownloading ? (
+              <div className={altStyle ? "h-5 w-5" : "h-6 w-6"}>
+                <LoadingSpinner size="small" light={altStyle} />
+              </div>
+            ) : (
+              <DownloadIcon color={altStyle ? '#fff' : '#888'} size={altStyle ? 20 : 24} />
+            )}
+          </button>}
           <button
             onClick={handleToggleFavorite}
             className={altStyle ? 'rounded hover:bg-white/10 group p-0.5' : "py-0.5 px-4 hover:bg-white hover:shadow-sm rounded-full relative group"}
@@ -116,20 +130,6 @@ export function ItemsUI({ selectedItems, deleteCallback, altStyle }: {
               </div>
             ) : (
               <HeartIcon filled={allFavorited} flipOnHover color={altStyle ? '#fff' : '#888'} size={altStyle ? 20 : 24} />
-            )}
-          </button>
-          <button
-            onClick={handleDownload}
-            className={altStyle ? 'rounded hover:bg-white/10 group p-0.5' : "py-0.5 px-4 hover:bg-white hover:shadow-sm rounded-full group"}
-            title="Download selected items"
-            disabled={isDownloading}
-          >
-            {isDownloading ? (
-              <div className={altStyle ? "h-5 w-5" : "h-6 w-6"}>
-                <LoadingSpinner size="small" light={altStyle} />
-              </div>
-            ) : (
-              <DownloadIcon color={altStyle ? '#fff' : '#888'} size={altStyle ? 20 : 24} />
             )}
           </button>
           <button
