@@ -1,4 +1,4 @@
-const EMBED_HOST = 'https://dd94-157-131-170-91.ngrok-free.app'
+const EMBED_HOST = 'https://cc48-199-188-192-36.ngrok-free.app'
 
 type Embedding = number[];
 
