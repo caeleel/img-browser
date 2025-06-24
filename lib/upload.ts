@@ -30,43 +30,6 @@ export type UploadStatus = {
 const BATCH_SIZE = 20;
 const BASE_PATH = 'photos';
 
-async function getFaceRecognition(imageBlob: Blob, imageId?: number): Promise<Array<{
-  person_id: number;
-  bbox: { left: number; top: number; right: number; bottom: number };
-  confidence: number;
-}>> {
-  try {
-    const formData = new FormData();
-    formData.append('file', imageBlob);
-
-    const response = await fetch('http://localhost:8000/faces/detect', {
-      method: 'POST',
-      body: formData,
-    });
-
-    if (!response.ok) {
-      throw new Error(`Face recognition server error: ${response.statusText}`);
-    }
-
-    const result = await response.json();
-    const faces = [];
-
-    for (const face of result.faces) {
-      const person_id = await findOrCreatePerson(face.encoding, imageId);
-      
-      faces.push({
-        person_id,
-        bbox: face.bbox,
-        confidence: 0.8 // Default confidence
-      });
-    }
-
-    return faces;
-  } catch (error) {
-    console.error('Error in face recognition:', error);
-    return [];
-  }
-}
 
 async function findOrCreatePerson(faceEncoding: number[], imageId?: number): Promise<number> {
   try {
@@ -314,7 +277,15 @@ async function processFiles(
             const embedding = await getImageEmbedding(thumbnail);
 
             // Store face recognition data to process after getting image ID
-            let faceRecognitionData: any[] = [];
+            let faceRecognitionData: Array<{
+              encoding: number[];
+              bbox: {
+                left: number;
+                top: number;
+                right: number;
+                bottom: number;
+              };
+            }> = [];
             
             if (!fileIsVideo) {
               try {
@@ -404,6 +375,7 @@ async function processFiles(
         }> = [];
 
         for (const item of validMetadata) {
+          if (!item) continue;
           const imageId = pathToIds[item.path];
           
           if (item?.embedding) {

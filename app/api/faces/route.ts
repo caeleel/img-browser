@@ -38,7 +38,7 @@ export async function GET(request: NextRequest) {
     const imageId = searchParams.get('image_id');
     
     let query;
-    let params: any[] = [];
+    let params: (string | number)[] = [];
     
     if (personId) {
       query = `
