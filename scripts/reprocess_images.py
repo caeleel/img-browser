@@ -188,7 +188,8 @@ async def process_batch(
     executor: ThreadPoolExecutor,
     cur,
     conn,
-    test_face_dir: Optional[str] = None
+    test_face_dir: Optional[str] = None,
+    dry_run: bool = False
 ) -> List[tuple]:
     """Process a batch of images for both embeddings and facial recognition."""
     results = []
@@ -238,25 +239,36 @@ async def process_batch(
                     print(f"Found {len(faces)} face(s) in {item['path']}")
                     
                     for face_encoding, bbox in faces:
-                        # Find matching person or create new one
-                        person_id = await find_matching_person(cur, face_encoding)
-                        
-                        if person_id is None:
-                            # Create new person
-                            person_id = await create_new_person(cur, face_encoding, item['id'])
-                            print(f"Created new person {person_id} from {item['path']}")
+                        if dry_run:
+                            # In dry run mode, simulate person matching/creation
+                            person_id = await find_matching_person(cur, face_encoding)
+                            if person_id is None:
+                                person_id = 999999  # Placeholder ID for dry run
+                                print(f"[DRY RUN] Would create new person from {item['path']}")
+                            else:
+                                print(f"[DRY RUN] Would match face to existing person {person_id} in {item['path']}")
+                            print(f"[DRY RUN] Would store face detection for person {person_id}")
                         else:
-                            print(f"Matched face to existing person {person_id} in {item['path']}")
-                        
-                        # Store the face detection
-                        await store_face_detection(cur, person_id, item['id'], bbox)
+                            # Find matching person or create new one
+                            person_id = await find_matching_person(cur, face_encoding)
+                            
+                            if person_id is None:
+                                # Create new person
+                                person_id = await create_new_person(cur, face_encoding, item['id'])
+                                print(f"Created new person {person_id} from {item['path']}")
+                            else:
+                                print(f"Matched face to existing person {person_id} in {item['path']}")
+                            
+                            # Store the face detection
+                            await store_face_detection(cur, person_id, item['id'], bbox)
                         
                         # If test_face_dir is provided, save images organized by person
                         if test_face_dir:
                             await save_test_face_image(test_face_dir, person_id, image_data, item['path'])
                 
-                # Commit after each image to ensure data is saved
-                await conn.commit()
+                # Commit after each image to ensure data is saved (unless dry run)
+                if not dry_run:
+                    await conn.commit()
                 
         except Exception as e:
             print(f"Error processing batch: {str(e)}", file=sys.stderr)
@@ -284,7 +296,11 @@ async def save_test_face_image(test_face_dir: str, person_id: int, image_data: b
 async def main():
     parser = argparse.ArgumentParser(description='Reprocess images for embeddings and facial recognition')
     parser.add_argument('--test-face-dir', type=str, help='Directory to save test face images organized by person')
+    parser.add_argument('--dry', action='store_true', help='Dry run mode: do not make any changes to the database')
     args = parser.parse_args()
+    
+    if args.dry:
+        print("DRY RUN MODE: No changes will be made to the database")
     
     if args.test_face_dir:
         os.makedirs(args.test_face_dir, exist_ok=True)
@@ -317,16 +333,19 @@ async def main():
                         
                         print(f"\nProcessing batch {i//BATCH_SIZE + 1}/{(len(all_images) + BATCH_SIZE - 1)//BATCH_SIZE}")
                         
-                        results = await process_batch(session, batch, executor, cur, conn, args.test_face_dir)
+                        results = await process_batch(session, batch, executor, cur, conn, args.test_face_dir, args.dry)
                         
                         # Store embeddings
                         if results:
-                            await cur.executemany("""
-                                INSERT INTO image_embeddings (image_id, embedding)
-                                VALUES (%s, %s)
-                            """, results)
-                            await conn.commit()
-                            print(f"Stored {len(results)} embeddings")
+                            if args.dry:
+                                print(f"[DRY RUN] Would store {len(results)} embeddings")
+                            else:
+                                await cur.executemany("""
+                                    INSERT INTO image_embeddings (image_id, embedding)
+                                    VALUES (%s, %s)
+                                """, results)
+                                await conn.commit()
+                                print(f"Stored {len(results)} embeddings")
 
 if __name__ == "__main__":
     asyncio.run(main())
