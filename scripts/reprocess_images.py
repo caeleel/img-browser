@@ -214,15 +214,11 @@ async def cluster_unknown_faces(
     
     return encoding_to_person
 
-async def process_batch(
+async def process_batch_for_face_detection(
     batch: List[Dict],
-    executor: ThreadPoolExecutor,
-    cur,
-    conn,
-    test_face_dir: Optional[str] = None,
-    dry_run: bool = False
-):
-    """Process a batch of images for facial recognition only."""
+    executor: ThreadPoolExecutor
+) -> List[Dict]:
+    """Process a batch of images to detect faces and return face data."""
     image_data_list = []
     successful_items = []
     
@@ -249,11 +245,11 @@ async def process_batch(
             print(f"Error downloading {item['path']}: {str(e)}", file=sys.stderr)
             continue
     
+    all_faces_data = []
+    
     if image_data_list:
         try:
-            # First pass: collect all face data from images
-            all_faces_data = []  # List of (face_encoding, bbox, item, image_data)
-            
+            # Detect faces in all images
             for item, image_data in zip(successful_items, image_data_list):
                 print(f"Processing faces for {item['path']}")
                 
@@ -265,67 +261,112 @@ async def process_batch(
                 if faces:
                     print(f"Found {len(faces)} face(s) in {item['path']}")
                     for face_encoding, bbox in faces:
-                        all_faces_data.append((face_encoding, bbox, item, image_data))
+                        face_data = {
+                            'face_encoding': face_encoding,
+                            'bbox': bbox,
+                            'image_id': item['id'],
+                            'image_path': item['path'],
+                            'image_data': image_data
+                        }
+                        all_faces_data.append(face_data)
                 else:
                     print(f"No faces found in {item['path']}")
-            
-            # Second pass: separate known vs unknown faces
-            known_faces = []  # (face_encoding, bbox, item, image_data, person_id)
-            unknown_faces = []  # (face_encoding, face_data_dict)
-            
-            for face_encoding, bbox, item, image_data in all_faces_data:
-                person_id = await find_matching_person(cur, face_encoding)
-                
-                if person_id is not None:
-                    # Known face
-                    known_faces.append((face_encoding, bbox, item, image_data, person_id))
-                    print(f"Matched face to existing person {person_id} in {item['path']}")
-                else:
-                    # Unknown face - add to clustering list
-                    face_data = {
-                        'image_id': item['id'],
-                        'image_path': item['path'],
-                        'bbox': bbox,
-                        'image_data': image_data
-                    }
-                    unknown_faces.append((face_encoding, face_data))
-            
-            # Third pass: cluster unknown faces and create new people
-            encoding_to_person = {}
-            if unknown_faces:
-                encoding_to_person = await cluster_unknown_faces(unknown_faces, cur, conn, dry_run)
-            
-            # Fourth pass: store all face detections
-            # Handle known faces
-            for face_encoding, bbox, item, image_data, person_id in known_faces:
-                if not dry_run:
-                    await store_face_detection(cur, person_id, item['id'], bbox)
-                else:
-                    print(f"[DRY RUN] Would store known face detection for person {person_id}")
-                
-                if test_face_dir:
-                    await save_test_face_image(test_face_dir, person_id, image_data, item['path'])
-            
-            # Handle unknown faces (now clustered)
-            for face_encoding, face_data in unknown_faces:
-                encoding_key = face_encoding.tobytes()
-                person_id = encoding_to_person.get(encoding_key)
-                
-                if person_id:
-                    if not dry_run:
-                        await store_face_detection(cur, person_id, face_data['image_id'], face_data['bbox'])
-                    else:
-                        print(f"[DRY RUN] Would store clustered face detection for person {person_id}")
                     
-                    if test_face_dir:
-                        await save_test_face_image(test_face_dir, person_id, face_data['image_data'], face_data['image_path'])
-            
-            # Commit all face detection data for this batch (unless dry run)
-            if not dry_run:
-                await conn.commit()
-                
         except Exception as e:
             print(f"Error processing batch: {str(e)}", file=sys.stderr)
+    
+    return all_faces_data
+
+async def process_all_faces(
+    all_faces_data: List[Dict],
+    cur,
+    conn,
+    test_face_dir: Optional[str] = None,
+    dry_run: bool = False
+):
+    """Process all collected face data - separate known/unknown and cluster globally."""
+    print(f"\nProcessing {len(all_faces_data)} total faces across all images...")
+    
+    # Separate known vs unknown faces
+    known_faces = []
+    unknown_faces = []
+    
+    print("Checking for existing people matches...")
+    for face_data in all_faces_data:
+        face_encoding = face_data['face_encoding']
+        person_id = await find_matching_person(cur, face_encoding)
+        
+        if person_id is not None:
+            # Known face
+            face_data['person_id'] = person_id
+            known_faces.append(face_data)
+            print(f"Matched face to existing person {person_id} in {face_data['image_path']}")
+        else:
+            # Unknown face - add to clustering list
+            unknown_faces.append(face_data)
+    
+    print(f"Found {len(known_faces)} known faces and {len(unknown_faces)} unknown faces")
+    
+    # Global clustering on ALL unknown faces
+    encoding_to_person = {}
+    if unknown_faces:
+        print(f"\nPerforming global clustering on {len(unknown_faces)} unknown faces...")
+        
+        # Convert to format expected by clustering function
+        clustering_input = []
+        for face_data in unknown_faces:
+            clustering_input.append((
+                face_data['face_encoding'],
+                {
+                    'image_id': face_data['image_id'],
+                    'image_path': face_data['image_path'],
+                    'bbox': face_data['bbox'],
+                    'image_data': face_data['image_data']
+                }
+            ))
+        
+        encoding_to_person = await cluster_unknown_faces(clustering_input, cur, conn, dry_run)
+        
+        # Update unknown faces with their assigned person_ids
+        for face_data in unknown_faces:
+            encoding_key = face_data['face_encoding'].tobytes()
+            person_id = encoding_to_person.get(encoding_key)
+            if person_id:
+                face_data['person_id'] = person_id
+    
+    # Store all face detections
+    print(f"\nStoring face detection data...")
+    stored_count = 0
+    
+    # Store known faces
+    for face_data in known_faces:
+        if not dry_run:
+            await store_face_detection(cur, face_data['person_id'], face_data['image_id'], face_data['bbox'])
+            stored_count += 1
+        else:
+            print(f"[DRY RUN] Would store known face detection for person {face_data['person_id']}")
+        
+        if test_face_dir:
+            await save_test_face_image(test_face_dir, face_data['person_id'], face_data['image_data'], face_data['image_path'])
+    
+    # Store unknown faces (now clustered)
+    for face_data in unknown_faces:
+        if 'person_id' in face_data:
+            if not dry_run:
+                await store_face_detection(cur, face_data['person_id'], face_data['image_id'], face_data['bbox'])
+                stored_count += 1
+            else:
+                print(f"[DRY RUN] Would store clustered face detection for person {face_data['person_id']}")
+            
+            if test_face_dir:
+                await save_test_face_image(test_face_dir, face_data['person_id'], face_data['image_data'], face_data['image_path'])
+    
+    # Commit all changes
+    if not dry_run:
+        await conn.commit()
+        print(f"Stored {stored_count} face detections in database")
+    else:
+        print(f"[DRY RUN] Would store {stored_count} face detections")
 
 async def save_test_face_image(test_face_dir: str, person_id: int, image_data: bytes, image_path: str):
     """Save image to test directory organized by person."""
@@ -374,7 +415,10 @@ async def main():
                 
             print(f"Found {len(all_images)} images to process for facial recognition")
             
-            # Process in batches
+            # Phase 1: Process all images in batches to collect face data
+            print("Phase 1: Detecting faces in all images...")
+            all_faces_data = []
+            
             with ThreadPoolExecutor(max_workers=4) as executor:
                 for i in range(0, len(all_images), BATCH_SIZE):
                     batch = [{'id': row[0], 'path': row[1]} 
@@ -382,7 +426,15 @@ async def main():
                     
                     print(f"\nProcessing batch {i//BATCH_SIZE + 1}/{(len(all_images) + BATCH_SIZE - 1)//BATCH_SIZE}")
                     
-                    await process_batch(batch, executor, cur, conn, args.test_face_dir, args.dry)
+                    batch_faces = await process_batch_for_face_detection(batch, executor)
+                    all_faces_data.extend(batch_faces)
+            
+            # Phase 2: Global processing of all faces - known vs unknown separation and clustering
+            print(f"\nPhase 2: Processing all {len(all_faces_data)} detected faces globally...")
+            if all_faces_data:
+                await process_all_faces(all_faces_data, cur, conn, args.test_face_dir, args.dry)
+            else:
+                print("No faces detected in any images")
 
 if __name__ == "__main__":
     asyncio.run(main())
