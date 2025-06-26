@@ -1,7 +1,6 @@
 import os
 import sys
 import asyncio
-import aiohttp
 import psycopg
 from dotenv import load_dotenv
 import boto3
@@ -15,7 +14,6 @@ import numpy as np
 from PIL import Image
 import io
 from sklearn.cluster import DBSCAN
-import shutil
 
 # Load environment variables from both files
 load_dotenv()
@@ -39,47 +37,6 @@ if not DB_URL:
 # Batch size for processing
 BATCH_SIZE = 25
 
-async def get_embedding(session: aiohttp.ClientSession, image_data: bytes) -> List[float]:
-    """Get embedding from local CLIP server."""
-    try:
-        async with session.post(
-            'http://localhost:8000/embed/image',
-            data={'file': image_data}
-        ) as response:
-            if response.status != 200:
-                raise Exception(f"Error from embedding server: {await response.text()}")
-            result = await response.json()
-            return result['embedding']
-    except Exception as e:
-        print(f"Error getting embedding: {str(e)}", file=sys.stderr)
-        raise
-
-async def get_batch_embeddings(session: aiohttp.ClientSession, image_data_list: List[bytes]) -> List[List[float]]:
-    """Get embeddings for multiple images using batch endpoint."""
-    try:
-        # Create form-data with multiple files
-        form_data = aiohttp.FormData()
-        for image_data in image_data_list:
-            form_data.add_field('files', image_data)
-
-        async with session.post(
-            'http://localhost:8000/batch_embed/images',
-            data=form_data
-        ) as response:
-            if response.status != 200:
-                raise Exception(f"Error from embedding server: {await response.text()}")
-            result = await response.json()
-            
-            # Extract embeddings from results, handling potential errors
-            embeddings = []
-            for item in result['results']:
-                if item['error']:
-                    raise Exception(f"Error in batch response: {item['error']}")
-                embeddings.append(item['embedding'])
-            return embeddings
-    except Exception as e:
-        print(f"Error getting batch embeddings: {str(e)}", file=sys.stderr)
-        raise
 
 def detect_faces(image_data: bytes) -> List[Tuple[np.ndarray, Tuple[int, int, int, int]]]:
     """
@@ -258,16 +215,14 @@ async def cluster_unknown_faces(
     return encoding_to_person
 
 async def process_batch(
-    session: aiohttp.ClientSession,
     batch: List[Dict],
     executor: ThreadPoolExecutor,
     cur,
     conn,
     test_face_dir: Optional[str] = None,
     dry_run: bool = False
-) -> List[tuple]:
-    """Process a batch of images for both embeddings and facial recognition."""
-    results = []
+):
+    """Process a batch of images for facial recognition only."""
     image_data_list = []
     successful_items = []
     
@@ -296,16 +251,11 @@ async def process_batch(
     
     if image_data_list:
         try:
-            # Get embeddings for all images at once
-            embeddings = await get_batch_embeddings(session, image_data_list)
-            
-            # First pass: collect all face data and identify known vs unknown faces
+            # First pass: collect all face data from images
             all_faces_data = []  # List of (face_encoding, bbox, item, image_data)
             
-            for item, embedding, image_data in zip(successful_items, embeddings, image_data_list):
-                # Store embedding result
-                results.append((item['id'], embedding))
-                print(f"Processed embedding for {item['path']}")
+            for item, image_data in zip(successful_items, image_data_list):
+                print(f"Processing faces for {item['path']}")
                 
                 # Detect faces in the image
                 faces = await asyncio.get_event_loop().run_in_executor(
@@ -316,6 +266,8 @@ async def process_batch(
                     print(f"Found {len(faces)} face(s) in {item['path']}")
                     for face_encoding, bbox in faces:
                         all_faces_data.append((face_encoding, bbox, item, image_data))
+                else:
+                    print(f"No faces found in {item['path']}")
             
             # Second pass: separate known vs unknown faces
             known_faces = []  # (face_encoding, bbox, item, image_data, person_id)
@@ -374,8 +326,6 @@ async def process_batch(
                 
         except Exception as e:
             print(f"Error processing batch: {str(e)}", file=sys.stderr)
-    
-    return results
 
 async def save_test_face_image(test_face_dir: str, person_id: int, image_data: bytes, image_path: str):
     """Save image to test directory organized by person."""
@@ -396,7 +346,7 @@ async def save_test_face_image(test_face_dir: str, person_id: int, image_data: b
         print(f"Error saving test face image: {str(e)}", file=sys.stderr)
 
 async def main():
-    parser = argparse.ArgumentParser(description='Reprocess images for embeddings and facial recognition')
+    parser = argparse.ArgumentParser(description='Process all images for facial recognition')
     parser.add_argument('--test-face-dir', type=str, help='Directory to save test face images organized by person')
     parser.add_argument('--dry', action='store_true', help='Dry run mode: do not make any changes to the database')
     args = parser.parse_args()
@@ -411,43 +361,28 @@ async def main():
     # Connect to database
     async with await psycopg.AsyncConnection.connect(DB_URL) as conn:
         async with conn.cursor() as cur:
-            # Get all images that don't have embeddings yet
+            # Get all images from the metadata table
             await cur.execute("""
-                SELECT m.id, m.path 
-                FROM image_metadata m 
-                LEFT JOIN image_embeddings e ON m.id = e.image_id 
-                WHERE e.id IS NULL
+                SELECT id, path FROM image_metadata
+                ORDER BY created_at DESC
             """)
             all_images = await cur.fetchall()
             
             if not all_images:
-                print("No images to process")
+                print("No images found in database")
                 return
                 
-            print(f"Found {len(all_images)} images to process")
+            print(f"Found {len(all_images)} images to process for facial recognition")
             
             # Process in batches
-            async with aiohttp.ClientSession() as session:
-                with ThreadPoolExecutor(max_workers=4) as executor:
-                    for i in range(0, len(all_images), BATCH_SIZE):
-                        batch = [{'id': row[0], 'path': row[1]} 
-                                for row in all_images[i:i + BATCH_SIZE]]
-                        
-                        print(f"\nProcessing batch {i//BATCH_SIZE + 1}/{(len(all_images) + BATCH_SIZE - 1)//BATCH_SIZE}")
-                        
-                        results = await process_batch(session, batch, executor, cur, conn, args.test_face_dir, args.dry)
-                        
-                        # Store embeddings
-                        if results:
-                            if args.dry:
-                                print(f"[DRY RUN] Would store {len(results)} embeddings")
-                            else:
-                                await cur.executemany("""
-                                    INSERT INTO image_embeddings (image_id, embedding)
-                                    VALUES (%s, %s)
-                                """, results)
-                                await conn.commit()
-                                print(f"Stored {len(results)} embeddings")
+            with ThreadPoolExecutor(max_workers=4) as executor:
+                for i in range(0, len(all_images), BATCH_SIZE):
+                    batch = [{'id': row[0], 'path': row[1]} 
+                            for row in all_images[i:i + BATCH_SIZE]]
+                    
+                    print(f"\nProcessing batch {i//BATCH_SIZE + 1}/{(len(all_images) + BATCH_SIZE - 1)//BATCH_SIZE}")
+                    
+                    await process_batch(batch, executor, cur, conn, args.test_face_dir, args.dry)
 
 if __name__ == "__main__":
     asyncio.run(main())
