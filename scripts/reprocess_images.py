@@ -182,6 +182,81 @@ async def store_face_detection(cur, person_id: int, image_id: int, bbox: Tuple[f
         print(f"Error storing face detection: {str(e)}", file=sys.stderr)
         raise
 
+async def cluster_unknown_faces(
+    unknown_faces: List[Tuple[np.ndarray, Dict]], 
+    cur, 
+    conn,
+    dry_run: bool = False,
+    eps: float = 0.5,
+    min_samples: int = 2
+) -> Dict[np.ndarray, int]:
+    """
+    Cluster unknown face encodings and create new people for each cluster.
+    Returns mapping from face_encoding to person_id.
+    """
+    if not unknown_faces:
+        return {}
+    
+    print(f"Clustering {len(unknown_faces)} unknown faces...")
+    
+    # Extract face encodings for clustering
+    face_encodings = np.array([face_data[0] for face_data in unknown_faces])
+    
+    # Use DBSCAN clustering
+    # eps: max distance between samples in same cluster
+    # min_samples: min samples in neighborhood for core point
+    clustering = DBSCAN(eps=eps, min_samples=min_samples, metric='euclidean')
+    cluster_labels = clustering.fit_predict(face_encodings)
+    
+    # Create mapping from face encoding to person_id
+    encoding_to_person = {}
+    
+    # Get unique clusters (excluding noise points labeled as -1)
+    unique_labels = set(cluster_labels)
+    n_clusters = len(unique_labels) - (1 if -1 in unique_labels else 0)
+    n_noise = list(cluster_labels).count(-1)
+    
+    print(f"Found {n_clusters} face clusters and {n_noise} noise points")
+    
+    # Create people for each cluster
+    for cluster_id in unique_labels:
+        if cluster_id == -1:
+            # Handle noise points individually (create separate person for each)
+            noise_indices = [i for i, label in enumerate(cluster_labels) if label == -1]
+            for noise_idx in noise_indices:
+                face_encoding, face_data = unknown_faces[noise_idx]
+                
+                if dry_run:
+                    person_id = 999900 + noise_idx  # Placeholder for dry run
+                    print(f"[DRY RUN] Would create person for noise face from {face_data['image_path']}")
+                else:
+                    person_id = await create_new_person(cur, face_encoding, face_data['image_id'])
+                    print(f"Created person {person_id} for noise face from {face_data['image_path']}")
+                
+                encoding_to_person[face_encoding.tobytes()] = person_id
+        else:
+            # Create one person for the entire cluster
+            cluster_indices = [i for i, label in enumerate(cluster_labels) if label == cluster_id]
+            cluster_size = len(cluster_indices)
+            
+            # Use the first face in the cluster as representative
+            representative_idx = cluster_indices[0]
+            face_encoding, face_data = unknown_faces[representative_idx]
+            
+            if dry_run:
+                person_id = 999000 + cluster_id  # Placeholder for dry run
+                print(f"[DRY RUN] Would create person for cluster {cluster_id} (size: {cluster_size}) from {face_data['image_path']}")
+            else:
+                person_id = await create_new_person(cur, face_encoding, face_data['image_id'])
+                print(f"Created person {person_id} for cluster {cluster_id} (size: {cluster_size}) from {face_data['image_path']}")
+            
+            # Map all faces in this cluster to the same person
+            for cluster_idx in cluster_indices:
+                cluster_face_encoding, _ = unknown_faces[cluster_idx]
+                encoding_to_person[cluster_face_encoding.tobytes()] = person_id
+    
+    return encoding_to_person
+
 async def process_batch(
     session: aiohttp.ClientSession,
     batch: List[Dict],
@@ -224,7 +299,9 @@ async def process_batch(
             # Get embeddings for all images at once
             embeddings = await get_batch_embeddings(session, image_data_list)
             
-            # Process each image for facial recognition
+            # First pass: collect all face data and identify known vs unknown faces
+            all_faces_data = []  # List of (face_encoding, bbox, item, image_data)
+            
             for item, embedding, image_data in zip(successful_items, embeddings, image_data_list):
                 # Store embedding result
                 results.append((item['id'], embedding))
@@ -237,38 +314,63 @@ async def process_batch(
                 
                 if faces:
                     print(f"Found {len(faces)} face(s) in {item['path']}")
-                    
                     for face_encoding, bbox in faces:
-                        if dry_run:
-                            # In dry run mode, simulate person matching/creation
-                            person_id = await find_matching_person(cur, face_encoding)
-                            if person_id is None:
-                                person_id = 999999  # Placeholder ID for dry run
-                                print(f"[DRY RUN] Would create new person from {item['path']}")
-                            else:
-                                print(f"[DRY RUN] Would match face to existing person {person_id} in {item['path']}")
-                            print(f"[DRY RUN] Would store face detection for person {person_id}")
-                        else:
-                            # Find matching person or create new one
-                            person_id = await find_matching_person(cur, face_encoding)
-                            
-                            if person_id is None:
-                                # Create new person
-                                person_id = await create_new_person(cur, face_encoding, item['id'])
-                                print(f"Created new person {person_id} from {item['path']}")
-                            else:
-                                print(f"Matched face to existing person {person_id} in {item['path']}")
-                            
-                            # Store the face detection
-                            await store_face_detection(cur, person_id, item['id'], bbox)
-                        
-                        # If test_face_dir is provided, save images organized by person
-                        if test_face_dir:
-                            await save_test_face_image(test_face_dir, person_id, image_data, item['path'])
+                        all_faces_data.append((face_encoding, bbox, item, image_data))
+            
+            # Second pass: separate known vs unknown faces
+            known_faces = []  # (face_encoding, bbox, item, image_data, person_id)
+            unknown_faces = []  # (face_encoding, face_data_dict)
+            
+            for face_encoding, bbox, item, image_data in all_faces_data:
+                person_id = await find_matching_person(cur, face_encoding)
                 
-                # Commit after each image to ensure data is saved (unless dry run)
+                if person_id is not None:
+                    # Known face
+                    known_faces.append((face_encoding, bbox, item, image_data, person_id))
+                    print(f"Matched face to existing person {person_id} in {item['path']}")
+                else:
+                    # Unknown face - add to clustering list
+                    face_data = {
+                        'image_id': item['id'],
+                        'image_path': item['path'],
+                        'bbox': bbox,
+                        'image_data': image_data
+                    }
+                    unknown_faces.append((face_encoding, face_data))
+            
+            # Third pass: cluster unknown faces and create new people
+            encoding_to_person = {}
+            if unknown_faces:
+                encoding_to_person = await cluster_unknown_faces(unknown_faces, cur, conn, dry_run)
+            
+            # Fourth pass: store all face detections
+            # Handle known faces
+            for face_encoding, bbox, item, image_data, person_id in known_faces:
                 if not dry_run:
-                    await conn.commit()
+                    await store_face_detection(cur, person_id, item['id'], bbox)
+                else:
+                    print(f"[DRY RUN] Would store known face detection for person {person_id}")
+                
+                if test_face_dir:
+                    await save_test_face_image(test_face_dir, person_id, image_data, item['path'])
+            
+            # Handle unknown faces (now clustered)
+            for face_encoding, face_data in unknown_faces:
+                encoding_key = face_encoding.tobytes()
+                person_id = encoding_to_person.get(encoding_key)
+                
+                if person_id:
+                    if not dry_run:
+                        await store_face_detection(cur, person_id, face_data['image_id'], face_data['bbox'])
+                    else:
+                        print(f"[DRY RUN] Would store clustered face detection for person {person_id}")
+                    
+                    if test_face_dir:
+                        await save_test_face_image(test_face_dir, person_id, face_data['image_data'], face_data['image_path'])
+            
+            # Commit all face detection data for this batch (unless dry run)
+            if not dry_run:
+                await conn.commit()
                 
         except Exception as e:
             print(f"Error processing batch: {str(e)}", file=sys.stderr)
