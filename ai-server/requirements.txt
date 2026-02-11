@@ -20,6 +20,8 @@ boto3
 psycopg[binary]
 aiohttp
 numpy
+face_recognition
+scikit-learn
 
 # Development dependencies
 black

@@ -30,6 +30,34 @@ export type UploadStatus = {
 const BATCH_SIZE = 20;
 const BASE_PATH = 'photos';
 
+
+async function findOrCreatePerson(faceEncoding: number[], imageId?: number): Promise<number> {
+  try {
+    const credentials = getCredentials();
+    const response = await fetch('/api/people', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'find_or_create',
+        face_encoding: faceEncoding,
+        image_id: imageId,
+        credentials
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to find or create person');
+    }
+
+    const result = await response.json();
+    return result.person_id;
+  } catch (error) {
+    console.error('Error finding or creating person:', error);
+    // Return a fallback person ID
+    return 1;
+  }
+}
+
 function isVideo(file: File): boolean {
   return file.type.startsWith('video/') || file.name.toLowerCase().endsWith('.mov');
 }
@@ -143,6 +171,15 @@ interface ProcessedImage {
   shutter_speed?: string | number | null;
   focal_length?: string | number | null;
   orientation?: number;
+  faceRecognitionData?: Array<{
+    encoding: number[];
+    bbox: {
+      left: number;
+      top: number;
+      right: number;
+      bottom: number;
+    };
+  }>;
 }
 
 async function processFiles(
@@ -239,6 +276,36 @@ async function processFiles(
             // Get the image embedding using the newly created thumbnail
             const embedding = await getImageEmbedding(thumbnail);
 
+            // Store face recognition data to process after getting image ID
+            let faceRecognitionData: Array<{
+              encoding: number[];
+              bbox: {
+                left: number;
+                top: number;
+                right: number;
+                bottom: number;
+              };
+            }> = [];
+            
+            if (!fileIsVideo) {
+              try {
+                const formData = new FormData();
+                formData.append('file', thumbnail);
+
+                const response = await fetch('http://localhost:8000/faces/detect', {
+                  method: 'POST',
+                  body: formData,
+                });
+
+                if (response.ok) {
+                  const result = await response.json();
+                  faceRecognitionData = result.faces;
+                }
+              } catch (error) {
+                console.error('Error in face recognition:', error);
+              }
+            }
+
             // Upload original
             await uploadFile(
               filePath,
@@ -263,6 +330,7 @@ async function processFiles(
               shutter_speed: exif?.ExposureTime || null,
               focal_length: exif?.FocalLength || null,
               orientation: 1,
+              faceRecognitionData: faceRecognitionData.length > 0 ? faceRecognitionData : undefined,
             };
           } catch (error) {
             console.error(`Error processing ${path}:`, error);
@@ -299,9 +367,36 @@ async function processFiles(
 
         // Then store embeddings
         const embeddings: Record<number, number[]> = {};
+        const faceData: Array<{
+          image_id: number;
+          person_id: number;
+          bbox: { left: number; top: number; right: number; bottom: number };
+          confidence: number;
+        }> = [];
+
         for (const item of validMetadata) {
+          if (!item) continue;
+          const imageId = pathToIds[item.path];
+          
           if (item?.embedding) {
-            embeddings[pathToIds[item.path]] = item.embedding;
+            embeddings[imageId] = item.embedding;
+          }
+          
+          // Process face recognition data if available
+          if (item?.faceRecognitionData) {
+            for (const face of item.faceRecognitionData) {
+              try {
+                const person_id = await findOrCreatePerson(face.encoding, imageId);
+                faceData.push({
+                  image_id: imageId,
+                  person_id: person_id,
+                  bbox: face.bbox,
+                  confidence: 0.8
+                });
+              } catch (error) {
+                console.error('Error processing face data:', error);
+              }
+            }
           }
         }
 
@@ -314,6 +409,19 @@ async function processFiles(
 
           if (!embeddingResponse.ok) {
             throw new Error('Failed to store embeddings');
+          }
+        }
+
+        // Store face data
+        if (faceData.length > 0) {
+          const faceResponse = await fetch('/api/faces', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ faces: faceData, credentials })
+          });
+
+          if (!faceResponse.ok) {
+            throw new Error('Failed to store face data');
           }
         }
       }
