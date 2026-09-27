@@ -1,4 +1,5 @@
 import { logout } from "@/lib/utils";
+import SignOutIcon from "./icons/SignOutIcon";
 import { ChangeEventHandler, useEffect } from "react";
 import { useRouter } from "next/navigation";
 
@@ -36,9 +37,11 @@ export default function Header({ breadcrumbs, onLogout = logout, updatePath, sea
       <div className="flex w-full flex-row-reverse gap-4 items-center justify-between px-4 h-full">
         <button
           onClick={onLogout}
-          className="pointer-events-auto py-1 px-4 bg-black rounded-full hover:bg-black/80 text-white text-sm whitespace-nowrap"
+          title="Sign out"
+          aria-label="Sign out"
+          className="pointer-events-auto p-1 rounded-full text-black/35 hover:text-black/70 hover:bg-black/5 transition-colors"
         >
-          Sign out
+          <SignOutIcon />
         </button>
 
         {/* Left section */}
