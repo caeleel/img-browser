@@ -9,6 +9,23 @@ import CameraIcon from "./icons/CameraIcon";
 function DirectoryTile({ item }: {
   item: BucketItemWithBlob,
 }) {
+  if (item.cover) {
+    return (
+      <>
+        <img
+          src={item.cover.thumbnailUrl}
+          alt=""
+          draggable={false}
+          className={`absolute inset-0 w-full h-full object-cover ${getCssOrientation(item.cover.orientation || 1)}`}
+        />
+        <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/70 to-transparent" />
+        <div className="absolute left-0 bottom-0 p-4 text-left text-white text-sm font-medium select-none drop-shadow">
+          📁 {item.name}
+        </div>
+      </>
+    )
+  }
+
   return (
     <div className="p-4 text-left text-black/50 text-sm group-hover:text-black select-none">
       📁 {item.name}

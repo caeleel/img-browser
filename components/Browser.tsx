@@ -7,7 +7,7 @@ import PageSwitcher from './PageSwitcher';
 import { getCredentials, signedUrl } from '@/lib/s3';
 import type { BucketItemWithBlob } from '@/lib/types';
 import { ItemTile } from './ItemTile';
-import { fetchMetadata } from '@/lib/db';
+import { fetchFolderCovers, fetchMetadata } from '@/lib/db';
 import LoadingSpinner from './LoadingSpinner';
 import { useSetAtom, useAtom } from 'jotai';
 import { showFooterAtom, selectedItemsAtom } from '@/lib/atoms';
@@ -114,7 +114,26 @@ export default function Browser({
     return () => observer.disconnect();
   }, [infinite, hasMore, loadingMore, onLoadMore, contents]);
 
+  const fetchFolderCoverImages = async (items: BucketItemWithBlob[]) => {
+    const directories = items.filter(item => item.type === 'directory' && item.cover === undefined);
+    if (directories.length === 0) return;
+
+    try {
+      const covers = await fetchFolderCovers(directories.map(item => item.path), credentials);
+      await Promise.all(directories.map(async (item) => {
+        const cover = covers[item.path];
+        item.cover = cover
+          ? { ...cover, thumbnailUrl: await signedUrl(cover.path.replace('photos/', 'thumbnails/')) }
+          : null;
+      }));
+      setGeneration((generation) => generation + 1)
+    } catch (error) {
+      console.error('Error fetching folder covers:', error);
+    }
+  };
+
   const fetchAllImages = async (items: BucketItemWithBlob[]) => {
+    fetchFolderCoverImages(items);
     const imageItems = items.filter(item => (item.type === 'image' || item.type === 'video') && !item.blobUrl);
 
     try {

@@ -27,8 +27,15 @@ export interface BucketItem {
   signedUrl?: string;
 }
 
+export interface FolderCover {
+  path: string;
+  orientation: number | null;
+}
+
 export interface BucketItemWithBlob extends BucketItem {
   blobUrl?: string;
+  // Directories only: the cover image, or null once we know there isn't one.
+  cover?: (FolderCover & { thumbnailUrl: string }) | null;
   index?: number;
   thumbnailBlobUrl?: string;
   metadata?: ImageMetadata;

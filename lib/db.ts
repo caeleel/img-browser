@@ -1,5 +1,5 @@
 import { deleteFile, getCredentials } from "./s3";
-import { ImageMetadata, S3Credentials } from "./types";
+import { FolderCover, ImageMetadata, S3Credentials } from "./types";
 
 // Client-side only
 export async function fetchMetadata(paths: string[], credentials: S3Credentials): Promise<Record<string, ImageMetadata>> {
@@ -12,6 +12,29 @@ export async function fetchMetadata(paths: string[], credentials: S3Credentials)
     body: JSON.stringify({ paths, credentials })
   });
   return await response.json();
+}
+
+export async function fetchFolderCovers(folderPaths: string[], credentials: S3Credentials): Promise<Record<string, FolderCover>> {
+  if (folderPaths.length === 0) {
+    return {};
+  }
+
+  const response = await fetch('/api/folder_covers', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ folderPaths, credentials })
+  });
+  if (!response.ok) throw new Error('Failed to fetch folder covers');
+  return await response.json();
+}
+
+export async function setFolderCover(folderPath: string, imageId: number, credentials: S3Credentials) {
+  const response = await fetch('/api/folder_covers', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ folderPath, imageId, credentials })
+  });
+  if (!response.ok) throw new Error('Failed to set folder cover');
 }
 
 export async function updateMetadata(ids: number[], metadata: Partial<ImageMetadata>, credentials: S3Credentials) {
