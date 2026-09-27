@@ -49,15 +49,24 @@ export default function Browser({
   updatePath = () => { },
   onDelete = () => { },
   loading = false,
-  onPageChange = () => { }
+  onPageChange = () => { },
+  onLoadMore,
+  hasMore = false,
+  loadingMore = false,
 }: {
   allContents: BucketItemWithBlob[],
   pageSize?: number,
   updatePath?: (path: string) => void,
   onDelete?: (path: string) => void,
   loading?: boolean,
-  onPageChange?: (page: number) => void
+  onPageChange?: (page: number) => void,
+  // Passing onLoadMore switches to infinite scroll: everything in allContents is shown, and
+  // onLoadMore is called when the bottom of the grid comes into view.
+  onLoadMore?: () => void,
+  hasMore?: boolean,
+  loadingMore?: boolean,
 }) {
+  const infinite = onLoadMore !== undefined;
   const router = useRouter();
   const searchParams = useSearchParams();
   const [contents, setContents] = useState<BucketItemWithBlob[]>([]);
@@ -68,7 +77,7 @@ export default function Browser({
 
   const [viewerImageIndex, setViewerImageIndex] = useState<number | null>(null);
   const selectedImage = viewerImageIndex !== null ? allImages[viewerImageIndex] : null;
-  const totalPages = Math.ceil(allContents.length / pageSize);
+  const totalPages = infinite ? 1 : Math.ceil(allContents.length / pageSize);
   const [generation, setGeneration] = useState(0);
   const [delayedIsLoading, setDelayedIsLoading] = useState(true);
 
@@ -78,14 +87,32 @@ export default function Browser({
   const [isDragging, setIsDragging] = useState(false);
   const [selection, setSelection] = useState<SelectionBox | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const loadMoreRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setTimeout(() => setDelayedIsLoading(loading), 10)
   }, [loading])
 
   useEffect(() => {
-    updateCurrentPageContents(currentPage, allContents);
+    if (infinite) {
+      setContents(allContents);
+      fetchAllImages(allContents.filter(item => !item.thumbnailBlobUrl));
+    } else {
+      updateCurrentPageContents(currentPage, allContents);
+    }
   }, [allContents, currentPage]);
+
+  useEffect(() => {
+    const sentinel = loadMoreRef.current;
+    if (!infinite || !hasMore || loadingMore || !sentinel) return;
+
+    // Start loading a screen ahead of the bottom so scrolling rarely has to wait.
+    const observer = new IntersectionObserver((entries) => {
+      if (entries.some(entry => entry.isIntersecting)) onLoadMore();
+    }, { rootMargin: '100% 0px' });
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [infinite, hasMore, loadingMore, onLoadMore, contents]);
 
   const fetchAllImages = async (items: BucketItemWithBlob[]) => {
     const imageItems = items.filter(item => (item.type === 'image' || item.type === 'video') && !item.blobUrl);
@@ -134,7 +161,7 @@ export default function Browser({
   };
 
   const handlePageChange = async (page: number) => {
-    if (page === currentPage) return;
+    if (infinite || page === currentPage) return;
     setCurrentPage(page);
     updateUrl(page);
   };
@@ -143,7 +170,7 @@ export default function Browser({
     setViewerImageIndex(index);
     setSelectedItems({});
     let pageNumber: number | undefined
-    if (index !== null) {
+    if (index !== null && !infinite) {
       pageNumber = Math.floor(index / pageSize) + 1;
     }
     updateUrl(pageNumber, index !== null ? allImages[index].path : '');
@@ -213,7 +240,7 @@ export default function Browser({
       if (index !== -1) {
         const page = Math.floor(index / pageSize) + 1;
 
-        if (page !== currentPage) {
+        if (!infinite && page !== currentPage) {
           handlePageChange(page);
         }
 
@@ -316,6 +343,11 @@ export default function Browser({
             ))}
           </div>
         )}
+        {infinite && !loading && contents.length > 0 && (
+          <div ref={loadMoreRef} className="flex justify-center pb-24 -mt-16 min-h-8">
+            {loadingMore && <LoadingSpinner />}
+          </div>
+        )}
       </div>
 
       {totalPages > 1 && (
@@ -351,6 +383,10 @@ export default function Browser({
             const nextIndex = viewerImageIndex + 1;
             if (nextIndex < allImages.length) {
               setNextImage(nextIndex);
+            }
+            // Keep the viewer ahead of the loaded results when paging through with arrow keys.
+            if (infinite && hasMore && !loadingMore && nextIndex >= allImages.length - 5) {
+              onLoadMore();
             }
           }}
           onPrevious={() => {

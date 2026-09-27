@@ -4,6 +4,16 @@ import { S3Credentials } from './types';
 const EMBED_HOST = 'https://caeleel--img-browser-embed-embed-web.modal.run'
 export const EMBEDDING_DIM = 768;
 
+// SigLIP scores a text/image pair as sigmoid(similarity * scale + bias). These are the model's
+// learned values (model.logit_scale.exp(), model.logit_bias for siglip2-base-patch16-256).
+const LOGIT_SCALE = 112.90117645263672;
+const LOGIT_BIAS = -16.77180290222168;
+
+// Cosine similarity at which the model's match probability equals `probability`.
+export function similarityForProbability(probability: number): number {
+  return (Math.log(probability / (1 - probability)) - LOGIT_BIAS) / LOGIT_SCALE;
+}
+
 type Embedding = number[];
 
 function authHeaders(credentials: S3Credentials): Record<string, string> {
