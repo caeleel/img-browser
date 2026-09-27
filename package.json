@@ -6,7 +6,8 @@
     "dev": "next dev --turbopack",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "sync-phone": "node scripts/phone-sync/sync.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.717.0",

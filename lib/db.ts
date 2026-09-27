@@ -26,8 +26,11 @@ export async function updateMetadata(ids: number[], metadata: Partial<ImageMetad
 const ACCESS_KEY_ID = process.env.NEXT_PUBLIC_DO_ACCESS_KEY_ID || '';
 const SECRET_ACCESS_KEY = process.env.NEXT_PUBLIC_DO_SECRET_ACCESS_KEY || '';
 
-export async function credentialsValid(credentials: S3Credentials) {
-  return credentials.accessKeyId === ACCESS_KEY_ID && credentials.secretAccessKey === SECRET_ACCESS_KEY;
+// Synchronous on purpose: routes call it as `if (!credentialsValid(...))`, and an async
+// version returns a Promise, which is always truthy, so every request would pass.
+export function credentialsValid(credentials: Partial<S3Credentials> | null | undefined) {
+  if (!ACCESS_KEY_ID || !SECRET_ACCESS_KEY) return false;
+  return credentials?.accessKeyId === ACCESS_KEY_ID && credentials?.secretAccessKey === SECRET_ACCESS_KEY;
 }
 
 export async function deleteFileWithMetadata(paths: string[]) {
