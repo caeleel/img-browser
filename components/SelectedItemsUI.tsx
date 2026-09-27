@@ -159,13 +159,7 @@ export function ItemsUI({ selectedItems, deleteCallback, altStyle }: {
             title="Download selected items"
             disabled={isDownloading}
           >
-            {isDownloading ? (
-              <div className={altStyle ? "h-5 w-5" : "h-6 w-6"}>
-                <LoadingSpinner size="small" light={altStyle} />
-              </div>
-            ) : (
-              <DownloadIcon color={altStyle ? '#fff' : '#888'} size={altStyle ? 20 : 24} />
-            )}
+            <DownloadIcon downloading={isDownloading} color={altStyle ? '#fff' : '#888'} size={altStyle ? 20 : 24} />
           </button>}
           {selectedImages.length > 0 && <button
             onClick={handleToggleFavorite}

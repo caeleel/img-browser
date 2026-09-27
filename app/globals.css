@@ -28,3 +28,33 @@ html {
   height: 100%;
   overscroll-behavior: none;
 }
+/* Download icon arrow (components/icons/DownloadIcon.tsx). Offsets of 13px put the arrow fully
+   outside the circle it's clipped to, above or below. */
+@keyframes download-arrow-loop {
+  0% { transform: translateY(-13px); }
+  30% { transform: translateY(1px); }
+  38%, 70% { transform: translateY(0); }
+  100% { transform: translateY(13px); }
+}
+
+@keyframes download-arrow-land {
+  0% { transform: translateY(-13px); }
+  65% { transform: translateY(1.2px); }
+  82% { transform: translateY(-0.4px); }
+  100% { transform: translateY(0); }
+}
+
+.download-arrow-loop {
+  animation: download-arrow-loop 1.1s ease-in-out infinite;
+}
+
+.download-arrow-land {
+  animation: download-arrow-land 0.5s cubic-bezier(0.3, 0, 0.4, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .download-arrow-loop,
+  .download-arrow-land {
+    animation: none;
+  }
+}
