@@ -237,7 +237,7 @@ async function processFiles(
               thumbnail
             );
             // Get the image embedding using the newly created thumbnail
-            const embedding = await getImageEmbedding(thumbnail);
+            const embedding = await getImageEmbedding(thumbnail, credentials);
 
             // Upload original
             await uploadFile(

@@ -86,7 +86,26 @@ final class Bridge: NSObject, ICDeviceBrowserDelegate, ICCameraDeviceDelegate {
     // A catalog delivered before the phone was unlocked is empty; wait for the real one.
     guard !catalogSent, device.hasOpenSession, !device.isAccessRestrictedAppleDevice else { return }
     catalogSent = true
+    waitForStableCatalog(device, lastCount: -1, stableChecks: 0)
+  }
 
+  // The "complete" callback can arrive while the phone is still delivering items (seen: 7,514 of
+  // ~15,000), so only report the catalog once its size stops changing for a few seconds.
+  func waitForStableCatalog(_ device: ICCameraDevice, lastCount: Int, stableChecks: Int) {
+    let count = device.mediaFiles?.count ?? 0
+    if count == lastCount && stableChecks >= 3 {
+      sendCatalog(device)
+      return
+    }
+    if count != lastCount && lastCount >= 0 {
+      emit(["type": "status", "message": "Reading library… \(count) items so far"])
+    }
+    DispatchQueue.main.asyncAfter(deadline: .now() + 2) { [weak self] in
+      self?.waitForStableCatalog(device, lastCount: count, stableChecks: count == lastCount ? stableChecks + 1 : 0)
+    }
+  }
+
+  func sendCatalog(_ device: ICCameraDevice) {
     for case let file as ICCameraFile in device.mediaFiles ?? [] {
       let name = file.name ?? "unknown"
       let created = file.creationDate ?? file.fileCreationDate

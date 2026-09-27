@@ -25,7 +25,7 @@ export async function GET(request: Request) {
 
   try {
     // Get embedding for search query
-    const embedding = await getTextEmbedding(query);
+    const embedding = await getTextEmbedding(query, { accessKeyId, secretAccessKey });
 
     // Search for similar images using cosine similarity
     const results = await sql.query<ImageMetadata & { similarity: number }>(`
@@ -33,7 +33,7 @@ export async function GET(request: Request) {
         SELECT 
           m.*,
           1 - (e.embedding <=> $1) as similarity
-        FROM image_embeddings e
+        FROM image_embeddings_v2 e
         JOIN image_metadata m ON m.id = e.image_id
         ORDER BY similarity DESC
         LIMIT $2

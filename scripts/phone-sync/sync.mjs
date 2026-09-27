@@ -1,11 +1,14 @@
 #!/usr/bin/env node
 // Syncs an attached iPhone's photo library into the image cloud, mirroring what the web
 // uploader (lib/upload.ts) does: HEIC -> JPEG, 800px thumbnails under thumbnails/, EXIF
-// metadata and CLIP embeddings via the web app's API.
+// metadata and SigLIP 2 embeddings via the web app's API.
 //
 // Dedupe: a ledger of synced Photos asset ids lives in the bucket at sync-state/<dest>.json,
 // so re-runs (from any Mac) only process new assets. Photos that were already uploaded
 // elsewhere in the bucket (same filename + capture time) are skipped too.
+//
+// Only camera formats are synced: PNGs (screenshots, images saved from Safari/apps) are skipped.
+// For photos edited on the phone, only the edited version is synced.
 //
 // Usage: npm run sync-phone -- [--dest photos/iphone_sync] [--dry-run] [--limit N] [--login]
 
@@ -32,15 +35,15 @@ const REGION = 'sfo3';
 const ENDPOINT = 'https://sfo3.digitaloceanspaces.com';
 const ROOT_PATH = 'photos';
 
-// Extensions the web app knows how to show (lib/upload.ts), plus HEIC which gets converted.
-const IMAGE_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.heic', '.heif'];
+// Formats the iPhone camera produces; PNG/GIF/WebP are screenshots or saved images.
+const IMAGE_EXTENSIONS = ['.jpg', '.jpeg', '.heic', '.heif'];
 const VIDEO_EXTENSIONS = ['.mp4', '.mov'];
 const CONTENT_TYPES = {
-  '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png', '.gif': 'image/gif',
-  '.webp': 'image/webp', '.mp4': 'video/mp4', '.mov': 'video/quicktime',
+  '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.mp4': 'video/mp4', '.mov': 'video/quicktime',
 };
 
 const BATCH_SIZE = 20;
+const EMBEDDING_DIM = 768; // SigLIP 2, see ai-server/model.py
 const CREDENTIALS_FILE = path.join(os.homedir(), '.config', 'img-browser', 'credentials.json');
 
 const { values: args } = parseArgs({
@@ -65,7 +68,7 @@ if (args.help) {
   --login             Re-authorize through the browser even if credentials are cached
   --concurrency <n>   Items processed in parallel (default: 4)
   --api <url>         Web app base URL (default: https://dezephoto.vercel.app)
-  --embed-url <url>   CLIP embedding server (default: http://127.0.0.1:8000, started automatically)`);
+  --embed-url <url>   SigLIP 2 embedding server (default: http://127.0.0.1:8000, started automatically)`);
   process.exit(0);
 }
 
@@ -209,7 +212,8 @@ async function startBridge() {
 // ---------------------------------------------------------------------------
 // Embedding server (ai-server/embed.py), started locally if it isn't already running
 
-async function embedServerUp() {
+// Returns the server's embedding size, or null if nothing is answering.
+async function embedServerDim() {
   try {
     const response = await fetch(`${args['embed-url']}/embed/text`, {
       method: 'POST',
@@ -217,19 +221,24 @@ async function embedServerUp() {
       body: JSON.stringify({ content: 'ping' }),
       signal: AbortSignal.timeout(5000),
     });
-    return response.ok;
+    if (!response.ok) return null;
+    return (await response.json()).embedding?.length ?? null;
   } catch {
-    return false;
+    return null;
   }
 }
 
 async function ensureEmbedServer() {
-  if (await embedServerUp()) return null;
+  const dim = await embedServerDim();
+  if (dim === EMBEDDING_DIM) return null;
+  if (dim !== null) {
+    fail(`${args['embed-url']} serves ${dim}-d embeddings, expected ${EMBEDDING_DIM} (an old CLIP embed.py still running?). Stop it and re-run.`);
+  }
   const { hostname } = new URL(args['embed-url']);
   if (!['127.0.0.1', 'localhost'].includes(hostname)) fail(`Embedding server ${args['embed-url']} is not reachable`);
 
   const logFile = path.join(os.tmpdir(), 'img-browser-embed.log');
-  log(`Starting local CLIP embedding server (log: ${logFile})…`);
+  log(`Starting local SigLIP 2 embedding server (log: ${logFile})…`);
   const out = fs.openSync(logFile, 'w');
   const child = spawn(process.env.EMBED_PYTHON || 'python3', ['embed.py'], {
     cwd: path.join(REPO, 'ai-server'),
@@ -238,9 +247,9 @@ async function ensureEmbedServer() {
   let exited = false;
   child.on('exit', () => { exited = true; });
 
-  for (let i = 0; i < 90; i++) {
+  for (let i = 0; i < 150; i++) {
     if (exited) fail(`Embedding server failed to start, see ${logFile}`);
-    if (await embedServerUp()) return child;
+    if ((await embedServerDim()) === EMBEDDING_DIM) return child;
     await new Promise((r) => setTimeout(r, 2000));
   }
   child.kill();
@@ -253,7 +262,7 @@ async function getImageEmbedding(buffer) {
   const response = await fetch(`${args['embed-url']}/embed/image`, { method: 'POST', body: form });
   if (!response.ok) throw new Error(`Embedding failed (${response.status})`);
   const { embedding } = await response.json();
-  if (!Array.isArray(embedding) || embedding.length !== 512) throw new Error('Embedding server returned no embedding');
+  if (!Array.isArray(embedding) || embedding.length !== EMBEDDING_DIM) throw new Error('Embedding server returned no embedding');
   return embedding;
 }
 
@@ -304,8 +313,44 @@ const stem = (name) => name.replace(/\.[^.]+$/, '').toLowerCase();
 const extOf = (name) => path.extname(name).toLowerCase();
 
 function uploadName(item) {
-  const ext = extOf(item.name);
-  return ext === '.heic' || ext === '.heif' ? item.name.replace(/\.[^.]+$/, '.jpg') : item.name;
+  const ext = extOf(item.displayName);
+  return ext === '.heic' || ext === '.heif' ? item.displayName.replace(/\.[^.]+$/, '.jpg') : item.displayName;
+}
+
+const isSupported = (item) => [...IMAGE_EXTENSIONS, ...VIDEO_EXTENSIONS].includes(extOf(item.name));
+
+// An edited photo is two files sharing one Photos asset id: the original (IMG_1234) and the
+// rendered edit (IMG_E1234, originally named FullSizeRender).
+const isEditRender = (item) => /^IMG_E\d/i.test(item.name) || /^FullSizeRender\./i.test(item.originalName || '');
+
+// Picks what to sync: supported formats only, and for edited photos just the edit (named like
+// the original). An edit of a screenshot/saved image is skipped along with its original.
+function selectItems(catalog) {
+  const byAsset = new Map();
+  for (const item of catalog) {
+    // The bridge appends "|<name>" when two files share an asset id.
+    item.assetId = /^[0-9A-F-]{36}\/[^|]*/i.exec(item.id)?.[0] ?? item.id;
+    item.displayName = isEditRender(item) ? item.name.replace(/^IMG_E/i, 'IMG_') : item.name;
+    byAsset.set(item.assetId, [...(byAsset.get(item.assetId) || []), item]);
+  }
+
+  const selected = [];
+  const skipped = { unsupported: 0, editedOriginals: 0 };
+  for (const group of byAsset.values()) {
+    const edit = group.length > 1 && group.find(isEditRender);
+    if (!edit) {
+      for (const item of group) {
+        if (isSupported(item)) selected.push(item);
+        else skipped.unsupported++;
+      }
+    } else if (group.every(isSupported)) {
+      selected.push(edit);
+      skipped.editedOriginals += group.length - 1;
+    } else {
+      skipped.unsupported += group.length;
+    }
+  }
+  return { selected, skipped };
 }
 
 function monthFolder(item) {
@@ -359,7 +404,7 @@ async function processItem(item, bridge, workDir, existingByKey) {
         '-vf', "scale='min(800,iw)':'min(800,ih)':force_original_aspect_ratio=decrease", '-q:v', '4', thumbFile]);
     } else {
       let exif;
-      try { exif = await exifr.parse(original); } catch { /* no EXIF, e.g. screenshots */ }
+      try { exif = await exifr.parse(original); } catch { /* no EXIF */ }
       if (exif) {
         Object.assign(metadata, {
           taken_at: exif.DateTimeOriginal || metadata.taken_at,
@@ -372,7 +417,7 @@ async function processItem(item, bridge, workDir, existingByKey) {
 
       // Already uploaded elsewhere (e.g. dragged into the web app before)?
       if (exif?.DateTimeOriginal instanceof Date) {
-        const duplicate = existingByKey.get(`${stem(item.name)}|${exif.DateTimeOriginal.toISOString()}`);
+        const duplicate = existingByKey.get(`${stem(item.displayName)}|${exif.DateTimeOriginal.toISOString()}`);
         if (duplicate) return { duplicateOf: duplicate };
       }
 
@@ -443,14 +488,17 @@ async function main() {
   const catalog = await bridge.catalog.catch((error) => fail(error.message));
 
   const ledger = await loadLedger();
-  const supported = catalog.filter((item) => [...IMAGE_EXTENSIONS, ...VIDEO_EXTENSIONS].includes(extOf(item.name)));
-  const unsupported = catalog.length - supported.length;
-  let todo = supported.filter((item) => !ledger.items[item.id]);
+  const { selected, skipped } = selectItems(catalog);
+  // Ledger entries are keyed "<asset id>" or (older runs) "<asset id>|<name>". Match on asset id + name
+  // only: which file of an edited pair gets the bare id can change between sessions.
+  const isSynced = (item) =>
+    ledger.items[item.assetId]?.name === item.name || Boolean(ledger.items[`${item.assetId}|${item.name}`]);
+  let todo = selected.filter((item) => !isSynced(item));
   todo.sort((a, b) => (b.created || '').localeCompare(a.created || '')); // newest first
   if (args.limit) todo = todo.slice(0, parseInt(args.limit, 10));
 
   // Assign bucket paths, suffixing the asset id when two assets would collide.
-  const usedPaths = new Set(Object.values(ledger.items).map((entry) => entry.path));
+  const usedPaths = new Set(Object.values(ledger.items).map((entry) => entry.path).filter(Boolean));
   for (const item of todo) {
     let key = `${DEST}/${monthFolder(item)}/${uploadName(item)}`;
     if (usedPaths.has(key)) {
@@ -461,8 +509,8 @@ async function main() {
     item.path = key;
   }
 
-  log(`Library: ${catalog.length} items · ${supported.length - todo.length} already synced · ` +
-    `${todo.length} to sync${unsupported ? ` · ${unsupported} unsupported formats skipped` : ''}`);
+  log(`Library: ${catalog.length} items · ${selected.length - todo.length} already synced · ${todo.length} to sync · ` +
+    `skipped ${skipped.unsupported} screenshots/saved images and ${skipped.editedOriginals} originals of edited photos`);
 
   if (args['dry-run'] || todo.length === 0) {
     for (const item of todo.slice(0, 20)) log(`  ${item.name} -> ${item.path}`);
@@ -533,7 +581,7 @@ async function main() {
         }
         if (r.duplicateOf) counts.duplicate++;
         else counts.synced++;
-        ledger.items[r.item.id] = {
+        ledger.items[r.item.assetId] = {
           path: r.duplicateOf || r.item.path,
           name: r.item.name,
           ...(r.duplicateOf && { duplicate: true }),

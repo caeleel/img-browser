@@ -24,11 +24,11 @@ export async function POST(request: Request) {
 
     // Insert all embeddings in a single query
     await sql.query(`
-      INSERT INTO image_embeddings (image_id, embedding)
-      SELECT v.image_id, v.embedding::vector(512)
+      INSERT INTO image_embeddings_v2 (image_id, embedding)
+      SELECT v.image_id, v.embedding::vector(768)
       FROM jsonb_to_recordset($1) AS v(image_id int, embedding float[])
-      ON CONFLICT (image_id, version) 
-      DO UPDATE SET 
+      ON CONFLICT (image_id)
+      DO UPDATE SET
         embedding = EXCLUDED.embedding,
         updated_at = NOW()
     `, [JSON.stringify(values)]);
