@@ -138,8 +138,13 @@ export function ItemsUI({ selectedItems, deleteCallback, altStyle }: {
     e.stopPropagation();
 
     setIsDownloading(true);
-    await downloadFiles(selectedImages.map(img => img.path));
-    setIsDownloading(false);
+    try {
+      await downloadFiles(selectedImages.map(img => img.path));
+    } catch (error) {
+      console.error('Error downloading files:', error);
+    } finally {
+      setIsDownloading(false);
+    }
   };
 
   if (!credentials) return null;
@@ -159,7 +164,7 @@ export function ItemsUI({ selectedItems, deleteCallback, altStyle }: {
             title="Download selected items"
             disabled={isDownloading}
           >
-            <DownloadIcon downloading={isDownloading} color={altStyle ? '#fff' : '#888'} size={altStyle ? 20 : 24} />
+            <DownloadIcon loading={isDownloading} color={altStyle ? '#fff' : '#888'} size={altStyle ? 20 : 24} />
           </button>}
           {selectedImages.length > 0 && <button
             onClick={handleToggleFavorite}
