@@ -37,6 +37,15 @@ export async function setFolderCover(folderPath: string, imageId: number, creden
   if (!response.ok) throw new Error('Failed to set folder cover');
 }
 
+export async function clearFolderCover(folderPath: string, credentials: S3Credentials) {
+  const response = await fetch('/api/folder_covers', {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ folderPath, credentials })
+  });
+  if (!response.ok) throw new Error('Failed to clear folder cover');
+}
+
 export async function updateMetadata(ids: number[], metadata: Partial<ImageMetadata>, credentials: S3Credentials) {
   const response = await fetch('/api/metadata', {
     method: 'PUT',

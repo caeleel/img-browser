@@ -2,13 +2,14 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { listContents, ROOT_PATH } from '@/lib/s3';
+import { getCredentials, listContents, ROOT_PATH } from '@/lib/s3';
 import type { BucketItem, BucketItemWithBlob } from '@/lib/types';
 import Header from './Header';
 import DragTarget from './DragTarget';
 import { IMAGE_EXTENSIONS, processDataTransfer, VIDEO_EXTENSIONS } from '@/lib/upload';
-import { useAtom } from 'jotai';
-import { allContentsAtom } from '@/lib/atoms';
+import { useAtom, useSetAtom } from 'jotai';
+import { allContentsAtom, currentFolderCoverAtom } from '@/lib/atoms';
+import { fetchFolderCovers } from '@/lib/db';
 import Browser from './Browser';
 import SelectedItemsUI from './SelectedItemsUI';
 
@@ -22,6 +23,7 @@ export default function BucketBrowser({ onLogout }: { onLogout: () => void }) {
   const [allContents, setAllContents] = useAtom<BucketItemWithBlob[]>(allContentsAtom);
   const [loading, setLoading] = useState(true);
   const [isDragging, setIsDragging] = useState(false);
+  const setCurrentFolderCover = useSetAtom(currentFolderCoverAtom);
 
   const cleanupBlobUrls = (items: BucketItemWithBlob[]) => {
     items.forEach(item => {
@@ -76,6 +78,18 @@ export default function BucketBrowser({ onLogout }: { onLogout: () => void }) {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    let cancelled = false;
+    setCurrentFolderCover(null);
+    fetchFolderCovers([currentPath], getCredentials())
+      .then(covers => {
+        const cover = covers[currentPath];
+        if (!cancelled) setCurrentFolderCover({ folder: currentPath, imageId: cover?.id ?? null, path: cover?.path ?? null });
+      })
+      .catch(error => console.error('Error fetching folder cover:', error));
+    return () => { cancelled = true; };
+  }, [currentPath]);
 
   useEffect(() => {
     directoryPath = currentPath

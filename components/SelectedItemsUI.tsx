@@ -1,12 +1,12 @@
 'use client';
 
 import { useAtom, useAtomValue } from 'jotai';
-import { selectedItemsAtom, allContentsAtom, useFavoriteIds, credentialsAtom, useLoadFavorites } from '@/lib/atoms';
+import { selectedItemsAtom, allContentsAtom, useFavoriteIds, credentialsAtom, useLoadFavorites, currentFolderCoverAtom } from '@/lib/atoms';
 import { useState, useMemo, useEffect } from "react";
 import { usePathname } from 'next/navigation';
 import TrashIcon from "./icons/TrashIcon";
 import HeartIcon from "./icons/HeartIcon";
-import { deleteFileWithMetadata, setFolderCover } from '@/lib/db';
+import { clearFolderCover, deleteFileWithMetadata, setFolderCover } from '@/lib/db';
 import LoadingSpinner from './LoadingSpinner';
 import { downloadFiles, toggleFavorites } from '@/lib/utils';
 import { BucketItemWithBlob } from '@/lib/types';
@@ -39,7 +39,8 @@ export function ItemsUI({ selectedItems, deleteCallback, altStyle }: {
   const [isDeleting, setIsDeleting] = useState(false);
   const [isTogglingFavorite, setIsTogglingFavorite] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
-  const [coverStatus, setCoverStatus] = useState<'idle' | 'saving' | 'done' | 'error'>('idle');
+  const [coverStatus, setCoverStatus] = useState<'idle' | 'saving' | 'error'>('idle');
+  const [currentFolderCover, setCurrentFolderCover] = useAtom(currentFolderCoverAtom);
   const pathname = usePathname();
   const [allContents, setAllContents] = useAtom(allContentsAtom);
   const favoriteIds = useFavoriteIds();
@@ -55,24 +56,35 @@ export function ItemsUI({ selectedItems, deleteCallback, altStyle }: {
   // single selected image, or a single selected subfolder whose own thumbnail gets copied up.
   const coverSource = pathname === '/' && selected.length === 1 ? selected[0] : null;
   const coverImageId = coverSource?.type === 'directory' ? coverSource.cover?.id : coverSource?.metadata?.id;
+  const coverImagePath = coverSource?.type === 'directory' ? coverSource.cover?.path : coverSource?.path;
   const coverFolder = coverSource && coverImageId && parentFolder(coverSource.path) !== `${ROOT_PATH}/`
     ? parentFolder(coverSource.path)
     : null;
   const isShown = selectedImages.length > 0 || coverFolder !== null;
+  const isCover = coverFolder !== null && currentFolderCover?.folder === coverFolder && currentFolderCover.imageId === coverImageId;
 
   useEffect(() => setCoverStatus('idle'), [coverSource?.path]);
 
-  const handleSetCover = async (e: React.MouseEvent<HTMLButtonElement>) => {
+  // Toggles the folder thumbnail, updating the shared state first so the icon animates right away.
+  const handleToggleCover = async (e: React.MouseEvent<HTMLButtonElement>) => {
     e.stopPropagation();
     if (!coverImageId || !coverFolder || !credentials) return;
 
+    const previous = currentFolderCover;
+    const unset = isCover;
+    setCurrentFolderCover({
+      folder: coverFolder,
+      imageId: unset ? null : coverImageId,
+      path: unset ? null : coverImagePath ?? null,
+    });
     setCoverStatus('saving');
     try {
-      await setFolderCover(coverFolder, coverImageId, credentials);
-      setCoverStatus('done');
-      setTimeout(() => setCoverStatus(status => status === 'done' ? 'idle' : status), 2000);
+      if (unset) await clearFolderCover(coverFolder, credentials);
+      else await setFolderCover(coverFolder, coverImageId, credentials);
+      setCoverStatus('idle');
     } catch (error) {
-      console.error('Error setting folder thumbnail:', error);
+      console.error('Error updating folder thumbnail:', error);
+      setCurrentFolderCover(previous);
       setCoverStatus('error');
     }
   };
@@ -171,24 +183,18 @@ export function ItemsUI({ selectedItems, deleteCallback, altStyle }: {
           </button>}
           {coverFolder && (
             <button
-              onClick={handleSetCover}
+              onClick={handleToggleCover}
               className={altStyle ? 'rounded hover:bg-white/10 group p-0.5' : "py-0.5 px-4 hover:bg-white hover:shadow-sm rounded-full group"}
               title={coverStatus === 'error'
-                ? 'Could not set folder thumbnail'
-                : `Set as thumbnail for ${coverFolder.split('/').slice(-2)[0]}`}
+                ? 'Could not update folder thumbnail'
+                : `${isCover ? 'Remove as' : 'Set as'} thumbnail for ${coverFolder.split('/').slice(-2)[0]}`}
               disabled={coverStatus === 'saving'}
             >
-              {coverStatus === 'saving' ? (
-                <div className={altStyle ? "h-5 w-5" : "h-6 w-6"}>
-                  <LoadingSpinner size="small" light={altStyle} />
-                </div>
-              ) : (
-                <CoverIcon
-                  done={coverStatus === 'done'}
-                  color={coverStatus === 'error' ? '#ef4444' : altStyle ? '#fff' : '#888'}
-                  size={altStyle ? 20 : 24}
-                />
-              )}
+              <CoverIcon
+                set={isCover}
+                color={coverStatus === 'error' ? '#ef4444' : altStyle ? '#fff' : '#888'}
+                size={altStyle ? 20 : 24}
+              />
             </button>
           )}
           {selectedImages.length > 0 && <button

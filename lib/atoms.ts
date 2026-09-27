@@ -11,6 +11,8 @@ export const showFooterAtom = atom<boolean>(false);
 export const selectedItemsAtom = atom<{ [path: string]: BucketItemWithBlob }>({});
 export const allContentsAtom = atom<BucketItemWithBlob[]>([]);
 export const favoritesAtom = atom<Favorite[]>([]);
+// Cover of the folder being browsed; the grid badges it and the toolbar toggles it.
+export const currentFolderCoverAtom = atom<{ folder: string, imageId: number | null, path: string | null } | null>(null);
 export const credentialsAtom = atom<{ accessKeyId: string; secretAccessKey: string } | null>(null);
 
 export function useFavoriteIds() {

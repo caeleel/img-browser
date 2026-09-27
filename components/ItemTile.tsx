@@ -1,8 +1,10 @@
 import { BucketItemWithBlob } from "@/lib/types";
 import { getCssOrientation } from "@/lib/utils";
 import LoadingSpinner from "./LoadingSpinner";
-import { useAtom } from "jotai";
-import { selectedItemsAtom } from "@/lib/atoms";
+import { useAtom, useAtomValue } from "jotai";
+import { currentFolderCoverAtom, selectedItemsAtom } from "@/lib/atoms";
+import { usePathname } from "next/navigation";
+import CoverIcon from "./icons/CoverIcon";
 import { useEffect } from "react";
 import CameraIcon from "./icons/CameraIcon";
 
@@ -38,6 +40,10 @@ function ImageTile({ item }: {
 }) {
   const blobUrl = item.thumbnailBlobUrl || item.blobUrl
   const { metadata } = item
+  const currentFolderCover = useAtomValue(currentFolderCoverAtom)
+  const pathname = usePathname()
+  // Only badge in folder view; the atom still holds the last folder's cover on other pages.
+  const isFolderCover = pathname === '/' && currentFolderCover?.path === item.path
 
   if (!blobUrl) {
     return <LoadingSpinner />
@@ -51,6 +57,11 @@ function ImageTile({ item }: {
   return (
     <>
       {item.type === 'video' && <div className="absolute top-2 right-2"><CameraIcon /></div>}
+      {isFolderCover && (
+        <div className="absolute top-2 left-2 z-10 rounded bg-black/50 backdrop-blur-sm" title="Folder thumbnail">
+          <CoverIcon set color="#fff" size={20} />
+        </div>
+      )}
       <img
         src={blobUrl}
         alt={item.name}
