@@ -2,15 +2,24 @@
 
 import { useAtom, useAtomValue } from 'jotai';
 import { selectedItemsAtom, allContentsAtom, useFavoriteIds, credentialsAtom, useLoadFavorites } from '@/lib/atoms';
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
+import { usePathname } from 'next/navigation';
 import TrashIcon from "./icons/TrashIcon";
 import HeartIcon from "./icons/HeartIcon";
-import { deleteFileWithMetadata } from '@/lib/db';
+import { deleteFileWithMetadata, setFolderCover } from '@/lib/db';
 import LoadingSpinner from './LoadingSpinner';
 import { downloadFiles, toggleFavorites } from '@/lib/utils';
 import { BucketItemWithBlob } from '@/lib/types';
 import { createPortal } from 'react-dom';
 import DownloadIcon from './icons/DownloadIcon';
+import CoverIcon from './icons/CoverIcon';
+import { ROOT_PATH } from '@/lib/s3';
+
+// Folder that directly contains an image or folder path: photos/a/x.jpg and photos/a/b/ -> photos/a/
+function parentFolder(path: string) {
+  const trimmed = path.endsWith('/') ? path.slice(0, -1) : path;
+  return trimmed.slice(0, trimmed.lastIndexOf('/') + 1);
+}
 
 export default function SelectedItemsUI({ deleteCallback }: { deleteCallback: (items: BucketItemWithBlob[]) => void }) {
   const [selectedItems, setSelectedItems] = useAtom(selectedItemsAtom);
@@ -30,15 +39,43 @@ export function ItemsUI({ selectedItems, deleteCallback, altStyle }: {
   const [isDeleting, setIsDeleting] = useState(false);
   const [isTogglingFavorite, setIsTogglingFavorite] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
+  const [coverStatus, setCoverStatus] = useState<'idle' | 'saving' | 'done' | 'error'>('idle');
+  const pathname = usePathname();
   const [allContents, setAllContents] = useAtom(allContentsAtom);
   const favoriteIds = useFavoriteIds();
   const credentials = useAtomValue(credentialsAtom);
 
   // Filter to only images
-  const selectedImages = Object.values(selectedItems).filter(item => item.type === 'image' || item.type === 'video');
-  const isShown = selectedImages.length > 0;
+  const selected = Object.values(selectedItems);
+  const selectedImages = selected.filter(item => item.type === 'image' || item.type === 'video');
 
   useLoadFavorites()
+
+  // Setting the current folder's thumbnail is offered in folder view (not search/favorites) for a
+  // single selected image, or a single selected subfolder whose own thumbnail gets copied up.
+  const coverSource = pathname === '/' && selected.length === 1 ? selected[0] : null;
+  const coverImageId = coverSource?.type === 'directory' ? coverSource.cover?.id : coverSource?.metadata?.id;
+  const coverFolder = coverSource && coverImageId && parentFolder(coverSource.path) !== `${ROOT_PATH}/`
+    ? parentFolder(coverSource.path)
+    : null;
+  const isShown = selectedImages.length > 0 || coverFolder !== null;
+
+  useEffect(() => setCoverStatus('idle'), [coverSource?.path]);
+
+  const handleSetCover = async (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.stopPropagation();
+    if (!coverImageId || !coverFolder || !credentials) return;
+
+    setCoverStatus('saving');
+    try {
+      await setFolderCover(coverFolder, coverImageId, credentials);
+      setCoverStatus('done');
+      setTimeout(() => setCoverStatus(status => status === 'done' ? 'idle' : status), 2000);
+    } catch (error) {
+      console.error('Error setting folder thumbnail:', error);
+      setCoverStatus('error');
+    }
+  };
 
   const handleDelete = async (e: React.MouseEvent<HTMLButtonElement>) => {
     e.stopPropagation();
@@ -102,9 +139,9 @@ export function ItemsUI({ selectedItems, deleteCallback, altStyle }: {
       }}>
         <div className={altStyle ? 'flex items-center gap-2 ml-2' : "bg-neutral-100/50 shadow-inner backdrop-blur-lg rounded-full py-0.5 px-1 pointer-events-auto h-9 flex items-center justify-center gap-1"}>
           {!altStyle && <div className="px-6">
-            <p className="text-sm text-black/50">{selectedImages.length} selected</p>
+            <p className="text-sm text-black/50">{selected.length} selected</p>
           </div>}
-          {!altStyle && <button
+          {!altStyle && selectedImages.length > 0 && <button
             onClick={handleDownload}
             className={altStyle ? 'rounded hover:bg-white/10 group p-0.5' : "py-0.5 px-4 hover:bg-white hover:shadow-sm rounded-full group"}
             title="Download selected items"
@@ -118,7 +155,7 @@ export function ItemsUI({ selectedItems, deleteCallback, altStyle }: {
               <DownloadIcon color={altStyle ? '#fff' : '#888'} size={altStyle ? 20 : 24} />
             )}
           </button>}
-          <button
+          {selectedImages.length > 0 && <button
             onClick={handleToggleFavorite}
             className={altStyle ? 'rounded hover:bg-white/10 group p-0.5' : "py-0.5 px-4 hover:bg-white hover:shadow-sm rounded-full relative group"}
             title={allFavorited ? "Remove from favorites" : "Add to favorites"}
@@ -131,8 +168,30 @@ export function ItemsUI({ selectedItems, deleteCallback, altStyle }: {
             ) : (
               <HeartIcon filled={allFavorited} flipOnHover color={altStyle ? '#fff' : '#888'} size={altStyle ? 20 : 24} />
             )}
-          </button>
-          <button
+          </button>}
+          {coverFolder && (
+            <button
+              onClick={handleSetCover}
+              className={altStyle ? 'rounded hover:bg-white/10 group p-0.5' : "py-0.5 px-4 hover:bg-white hover:shadow-sm rounded-full group"}
+              title={coverStatus === 'error'
+                ? 'Could not set folder thumbnail'
+                : `Set as thumbnail for ${coverFolder.split('/').slice(-2)[0]}`}
+              disabled={coverStatus === 'saving'}
+            >
+              {coverStatus === 'saving' ? (
+                <div className={altStyle ? "h-5 w-5" : "h-6 w-6"}>
+                  <LoadingSpinner size="small" light={altStyle} />
+                </div>
+              ) : (
+                <CoverIcon
+                  done={coverStatus === 'done'}
+                  color={coverStatus === 'error' ? '#ef4444' : altStyle ? '#fff' : '#888'}
+                  size={altStyle ? 20 : 24}
+                />
+              )}
+            </button>
+          )}
+          {selectedImages.length > 0 && <button
             onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
               e.stopPropagation();
               setShowConfirm(true);
@@ -142,7 +201,7 @@ export function ItemsUI({ selectedItems, deleteCallback, altStyle }: {
             disabled={isDeleting}
           >
             <TrashIcon color={altStyle ? '#fff' : '#888'} size={altStyle ? 20 : 24} />
-          </button>
+          </button>}
         </div>
       </div>
 

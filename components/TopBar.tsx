@@ -3,7 +3,7 @@ import { BucketItemWithBlob } from "@/lib/types"
 import { Dispatch, SetStateAction, useState } from "react";
 import CloseIcon from "./icons/CloseIcon";
 import { ItemsUI } from "./SelectedItemsUI";
-import FolderMenu from "./FolderMenu";
+import ShowInFolderButton from "./ShowInFolderButton";
 
 export default function TopBar({ onPrevious, onNext, onClose, toggleFullscreen, setShowInfo, image, showFilmstrip, idx, total, isFullscreen, editing, setEditing }: {
   onPrevious?: () => void,
@@ -70,7 +70,7 @@ export default function TopBar({ onPrevious, onNext, onClose, toggleFullscreen, 
       </button>
       <ItemsUI altStyle selectedItems={{ [image.path]: image }} deleteCallback={() => onClose(true)} />
       <div className="ml-2 flex items-center">
-        <FolderMenu image={image} />
+        <ShowInFolderButton image={image} />
       </div>
     </div>
     <div className="flex items-center space-x-1 h-9">

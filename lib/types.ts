@@ -28,6 +28,7 @@ export interface BucketItem {
 }
 
 export interface FolderCover {
+  id: number;
   path: string;
   orientation: number | null;
 }

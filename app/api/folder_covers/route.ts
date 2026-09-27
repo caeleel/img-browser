@@ -5,7 +5,7 @@ import { NextResponse } from "next/server";
 
 const MAX_FOLDERS = 500;
 
-// Covers for a list of folders: { [folderPath]: { path, orientation } }
+// Covers for a list of folders: { [folderPath]: { id, path, orientation } }
 export async function POST(request: Request) {
   const { folderPaths, credentials }: { folderPaths: string[], credentials: S3Credentials } = await request.json();
 
@@ -20,14 +20,14 @@ export async function POST(request: Request) {
   }
 
   const { rows } = await sql.query(`
-    SELECT c.folder_path, m.path, m.orientation
+    SELECT c.folder_path, m.id, m.path, m.orientation
     FROM folder_covers c
     JOIN image_metadata m ON m.id = c.image_id
     WHERE c.folder_path = ANY($1)
   `, [folderPaths]);
 
   return NextResponse.json(Object.fromEntries(
-    rows.map((row) => [row.folder_path, { path: row.path, orientation: row.orientation }])
+    rows.map((row) => [row.folder_path, { id: row.id, path: row.path, orientation: row.orientation }])
   ));
 }
 
