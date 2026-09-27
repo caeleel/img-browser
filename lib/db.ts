@@ -23,8 +23,9 @@ export async function updateMetadata(ids: number[], metadata: Partial<ImageMetad
 }
 
 // Server-side only
-const ACCESS_KEY_ID = process.env.NEXT_PUBLIC_DO_ACCESS_KEY_ID || '';
-const SECRET_ACCESS_KEY = process.env.NEXT_PUBLIC_DO_SECRET_ACCESS_KEY || '';
+// Not NEXT_PUBLIC_: these must never be inlined into the client bundle.
+const ACCESS_KEY_ID = process.env.ACCESS_KEY_ID || '';
+const SECRET_ACCESS_KEY = process.env.SECRET_ACCESS_KEY || '';
 
 // Synchronous on purpose: routes call it as `if (!credentialsValid(...))`, and an async
 // version returns a Promise, which is always truthy, so every request would pass.
