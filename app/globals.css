@@ -122,22 +122,22 @@ html {
 }
 
 .tile-wall-top {
-  background: #b4b4b4;
+  background: #cfcfcf;
   clip-path: polygon(0 0, 100% 0, calc(100% - var(--sink)) var(--sink), var(--sink) var(--sink));
 }
 
 .tile-wall-left {
-  background: #a6a6a6;
+  background: #c4c4c4;
   clip-path: polygon(0 0, var(--sink) var(--sink), var(--sink) calc(100% - var(--sink)), 0 100%);
 }
 
 .tile-wall-right {
-  background: #cbcbcb;
+  background: #dedede;
   clip-path: polygon(100% 0, 100% 100%, calc(100% - var(--sink)) calc(100% - var(--sink)), calc(100% - var(--sink)) var(--sink));
 }
 
 .tile-wall-bottom {
-  background: #d8d8d8;
+  background: #e9e9e9;
   clip-path: polygon(0 100%, var(--sink) calc(100% - var(--sink)), calc(100% - var(--sink)) calc(100% - var(--sink)), 100% 100%);
 }
 

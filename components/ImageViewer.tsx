@@ -319,17 +319,30 @@ export default function ImageViewer({
   // Until the full photo arrives, show its thumbnail (already loaded for the grid/filmstrip) so
   // swiping to a new photo shows something immediately. Thumbnails the app rotates with CSS
   // (orientation 6/8) would show sideways here, so those wait for the full photo.
-  const thumbnailStandIn = image.type === 'image' && !image.blobUrl && image.thumbnailBlobUrl
-    && image.metadata?.orientation !== 6 && image.metadata?.orientation !== 8
-    ? image.thumbnailBlobUrl : undefined;
-  const displayUrl = image.blobUrl ?? thumbnailStandIn;
+  const viewUrl = (img?: BucketItemWithBlob) => {
+    if (!img) return undefined;
+    if (img.blobUrl && img.type === 'image') return img.blobUrl;
+    const rotated = img.metadata?.orientation === 6 || img.metadata?.orientation === 8;
+    return img.thumbnailBlobUrl && !rotated ? img.thumbnailBlobUrl : undefined;
+  };
+  const displayUrl = image.type === 'image' ? viewUrl(image) : undefined;
 
-  // Swiping sideways on the photo moves between photos (touch only, not while zoomed or on videos)
-  const canSwipe = isTouch && image.type !== 'video' && scale === 1;
+  // Swiping sideways on the photo moves between photos (touch only, not while zoomed or on videos).
+  // The neighbouring photos ride along just off-screen, so the next one slides in with the finger;
+  // a completed swipe animates the strip the rest of the way, then switches photos in place.
+  const SWIPE_GAP = 16;
+  const SWIPE_MS = 200;
+  const contentRef = useRef<HTMLDivElement>(null);
+  const swipeTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  useEffect(() => () => clearTimeout(swipeTimer.current), []);
+  const canSwipe = isTouch && image.type !== 'video' && scale === 1 && !swipeSettling;
+  const previousUrl = isTouch ? viewUrl(allImages[idx - 1]) : undefined;
+  const nextUrl = isTouch ? viewUrl(allImages[idx + 1]) : undefined;
+  const swipeTransition = swipeSettling ? `transform ${SWIPE_MS}ms ease-out` : undefined;
+
   const handleTouchStart = (e: React.TouchEvent) => {
     if (!canSwipe || e.touches.length !== 1) return;
     swipe.current = { x: e.touches[0].clientX, y: e.touches[0].clientY, axis: null };
-    setSwipeSettling(false);
   };
   const handleTouchMove = (e: React.TouchEvent) => {
     const start = swipe.current;
@@ -346,12 +359,18 @@ export default function ImageViewer({
     const start = swipe.current;
     swipe.current = null;
     if (!start || start.axis !== 'x') return;
+    const width = (contentRef.current?.clientWidth ?? window.innerWidth) + SWIPE_GAP;
     const threshold = Math.min(80, window.innerWidth * 0.2);
-    setSwipeX(0);
-    // A completed swipe shows the next photo in place; a short one springs back
-    if (swipeX <= -threshold && hasNext) onNext?.();
-    else if (swipeX >= threshold && hasPrevious) onPrevious?.();
-    else setSwipeSettling(true);
+    const direction = swipeX <= -threshold && hasNext ? 1 : swipeX >= threshold && hasPrevious ? -1 : 0;
+    setSwipeSettling(true);
+    setSwipeX(-direction * width);  // 0 springs back
+    swipeTimer.current = setTimeout(() => {
+      // The neighbour is now exactly where the current photo was: switch without animating
+      if (direction === 1) onNext?.();
+      if (direction === -1) onPrevious?.();
+      setSwipeSettling(false);
+      setSwipeX(0);
+    }, SWIPE_MS);
   };
 
   // In immersive mode, a tap on the black around the photo brings the viewer chrome back
@@ -391,6 +410,7 @@ export default function ImageViewer({
 
       {/* Main content */}
       <div
+        ref={contentRef}
         className={`${chromeShown ? 'mt-4' : ''} flex-1 flex flex-col w-full items-center justify-center relative transition-all duration-300 overflow-hidden`}
         style={isTouch ? { touchAction: 'pinch-zoom' } : undefined}
         onTouchStart={handleTouchStart}
@@ -399,6 +419,22 @@ export default function ImageViewer({
         onTouchCancel={handleTouchEnd}
         onClick={handleContentClick}
       >
+        {/* Neighbouring photos, off-screen until swiped in */}
+        {[{ url: previousUrl, side: -1 }, { url: nextUrl, side: 1 }].map(({ url, side }) => url && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            key={side}
+            src={url}
+            alt=""
+            aria-hidden
+            draggable={false}
+            className="absolute inset-0 w-full h-full object-contain pointer-events-none"
+            style={{
+              transform: `translateX(calc(${side} * (100% + ${SWIPE_GAP}px) + ${swipeX}px))`,
+              transition: swipeTransition,
+            }}
+          />
+        ))}
         {/* Image container */}
         {image.type === 'video' && image.blobUrl ? (
           <VideoPlayer key={image.path} video={image} />
@@ -412,9 +448,8 @@ export default function ImageViewer({
               style={{
                 transform: `translate(${position.x + swipeX}px, ${position.y}px) scale(${scale})`,
                 transformOrigin: 'center',
-                transition: swipeSettling ? 'transform 200ms ease-out' : undefined,
+                transition: swipeTransition,
               }}
-              onTransitionEnd={() => setSwipeSettling(false)}
               onMouseDown={handleMouseDown}
               onMouseMove={handleMouseMove}
               onMouseUp={handleMouseUp}
