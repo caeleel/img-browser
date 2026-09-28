@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import Header from '@/components/Header';
 import FullscreenContainer from '@/components/FullscreenContainer';
@@ -10,8 +10,8 @@ import PersonNameInput from '@/components/PersonNameInput';
 import { Person } from '@/lib/types';
 import { fetchPersons, mergePersons, updatePerson } from '@/lib/persons';
 
-// People photographed on fewer days than this (and not named) are tucked away below the grid:
-// they're mostly strangers, statues, or one-off fragments of someone (e.g. in a mask).
+// People photographed on fewer days than this (and not named) only show with the "low-occurrence"
+// filter: they're mostly strangers, statues, or one-off fragments of someone (e.g. in a mask).
 const MIN_DAYS = 2;
 
 export default function PeoplePage() {
@@ -75,13 +75,16 @@ export default function PeoplePage() {
   }
 
   const isRare = (p: Person) => p.name === null && p.dayCount < MIN_DAYS;
-  const visible = persons.filter((p) => !p.hidden && !isRare(p));
-  const rare = persons.filter((p) => !p.hidden && isRare(p));
-  const hidden = persons.filter((p) => p.hidden);
+  const shown = persons.filter((p) => (showHidden || !p.hidden) && (showRare || !isRare(p)));
 
   return (
     <div>
-      <Header />
+      <Header actions={
+        <FilterMenu options={[
+          { label: 'Show hidden people', count: persons.filter((p) => p.hidden).length, checked: showHidden, onChange: setShowHidden },
+          { label: 'Show low-occurrence people', count: persons.filter((p) => !p.hidden && isRare(p)).length, checked: showRare, onChange: setShowRare },
+        ]} />
+      } />
       {persons.length === 0 ? (
         <FullscreenContainer>
           <div className="text-black/30">
@@ -90,23 +93,7 @@ export default function PeoplePage() {
         </FullscreenContainer>
       ) : (
         <div className="max-w-7xl mx-auto p-8 pb-20">
-          <PersonGrid persons={visible} onRename={rename} onSetHidden={setHidden} />
-          {rare.length > 0 && (
-            <div className="mt-12">
-              <button onClick={() => setShowRare(!showRare)} className="text-sm text-black/40 hover:text-black/70">
-                {showRare ? 'Hide' : 'Show'} people seen on only one day ({rare.length})
-              </button>
-              {showRare && <div className="mt-6"><PersonGrid persons={rare} onRename={rename} onSetHidden={setHidden} /></div>}
-            </div>
-          )}
-          {hidden.length > 0 && (
-            <div className="mt-12">
-              <button onClick={() => setShowHidden(!showHidden)} className="text-sm text-black/40 hover:text-black/70">
-                {showHidden ? 'Hide' : 'Show'} hidden people ({hidden.length})
-              </button>
-              {showHidden && <div className="mt-6"><PersonGrid persons={hidden} onRename={rename} onSetHidden={setHidden} /></div>}
-            </div>
-          )}
+          <PersonGrid persons={shown} onRename={rename} onSetHidden={setHidden} />
         </div>
       )}
 
@@ -177,6 +164,61 @@ function PersonGrid({ persons, onRename, onSetHidden }: {
           </div>
         </div>
       ))}
+    </div>
+  );
+}
+
+type FilterOption = { label: string, count: number, checked: boolean, onChange: (checked: boolean) => void };
+
+// Filter button for the header; a dot marks it while any option is on.
+function FilterMenu({ options }: { options: FilterOption[] }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const active = options.some((option) => option.checked);
+
+  useEffect(() => {
+    if (!open) return;
+    const close = (e: MouseEvent | KeyboardEvent) => {
+      if (e instanceof KeyboardEvent ? e.key === 'Escape' : !ref.current?.contains(e.target as Node)) setOpen(false);
+    };
+    window.addEventListener('mousedown', close);
+    window.addEventListener('keydown', close);
+    return () => {
+      window.removeEventListener('mousedown', close);
+      window.removeEventListener('keydown', close);
+    };
+  }, [open]);
+
+  return (
+    <div ref={ref} className="relative pointer-events-auto">
+      <button
+        onClick={() => setOpen(!open)}
+        title="Filter"
+        aria-label="Filter"
+        aria-expanded={open}
+        className={`relative p-1 rounded-full hover:text-black/70 hover:bg-black/5 transition-colors ${open ? 'text-black/70 bg-black/5' : 'text-black/35'}`}
+      >
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M5 7.5H19M7.5 12H16.5M10 16.5H14" stroke="currentColor" strokeLinecap="round" />
+        </svg>
+        {active && <span className="absolute top-0.5 right-0.5 w-1.5 h-1.5 rounded-full bg-sky-600" />}
+      </button>
+      {open && (
+        <div className="absolute right-0 top-full mt-1 w-64 rounded-lg bg-white/80 backdrop-blur-lg shadow-md border border-black/5 p-1 z-20">
+          {options.map((option) => (
+            <label key={option.label} className="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm text-black/70 hover:bg-black/5 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={option.checked}
+                onChange={(e) => option.onChange(e.target.checked)}
+                className="accent-black"
+              />
+              <span className="flex-1">{option.label}</span>
+              <span className="text-xs text-black/35">{option.count}</span>
+            </label>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

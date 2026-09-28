@@ -19,22 +19,3 @@ export function PortraitIcon({ color = '#888', size = 24 }: { color?: string, si
     </svg>
   );
 }
-
-export function MergeIcon({ color = '#888', size = 24 }: { color?: string, size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <circle cx="8.5" cy="12" r="4" stroke={color} />
-      <circle cx="15.5" cy="12" r="4" stroke={color} />
-    </svg>
-  );
-}
-
-export function HideIcon({ hidden, color = '#888', size = 24 }: { hidden: boolean, color?: string, size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <path d="M3.5 12C5.5 8.5 8.5 6.5 12 6.5C15.5 6.5 18.5 8.5 20.5 12C18.5 15.5 15.5 17.5 12 17.5C8.5 17.5 5.5 15.5 3.5 12Z" stroke={color} />
-      <circle cx="12" cy="12" r="2.5" stroke={color} />
-      {hidden && <path d="M5 19L19 5" stroke={color} strokeLinecap="round" />}
-    </svg>
-  );
-}

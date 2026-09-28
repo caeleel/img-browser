@@ -1,14 +1,16 @@
 import { logout } from "@/lib/utils";
 import SignOutIcon from "./icons/SignOutIcon";
-import { ChangeEventHandler, useEffect } from "react";
+import { ChangeEventHandler, ReactNode, useEffect } from "react";
 import { useRouter } from "next/navigation";
 
-export default function Header({ breadcrumbs, onLogout = logout, updatePath, search, onSearch }: {
+export default function Header({ breadcrumbs, onLogout = logout, updatePath, search, onSearch, actions }: {
   breadcrumbs?: { path: string, name: string }[],
   onLogout?: () => void,
   updatePath?: (path: string) => void,
   search?: string,
-  onSearch?: ChangeEventHandler<HTMLInputElement>
+  onSearch?: ChangeEventHandler<HTMLInputElement>,
+  // Page-specific controls shown next to the sign-out button
+  actions?: ReactNode,
 }) {
   const router = useRouter();
 
@@ -35,14 +37,17 @@ export default function Header({ breadcrumbs, onLogout = logout, updatePath, sea
     <div className="fixed left-0 right-0 top-10 lg:top-0 z-10 pointer-events-none h-12">
       {/* Main header content */}
       <div className="flex w-full flex-row-reverse gap-4 items-center justify-between px-4 h-full">
-        <button
-          onClick={onLogout}
-          title="Sign out"
-          aria-label="Sign out"
-          className="pointer-events-auto p-1 rounded-full text-black/35 hover:text-black/70 hover:bg-black/5 transition-colors"
-        >
-          <SignOutIcon />
-        </button>
+        <div className="flex items-center gap-1">
+          {actions}
+          <button
+            onClick={onLogout}
+            title="Sign out"
+            aria-label="Sign out"
+            className="pointer-events-auto p-1 rounded-full text-black/35 hover:text-black/70 hover:bg-black/5 transition-colors"
+          >
+            <SignOutIcon />
+          </button>
+        </div>
 
         {/* Left section */}
         {breadcrumbs !== undefined && updatePath !== undefined && (

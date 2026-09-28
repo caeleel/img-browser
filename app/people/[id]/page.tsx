@@ -11,9 +11,9 @@ import LoadingSpinner from '@/components/LoadingSpinner';
 import SelectedItemsUI from '@/components/SelectedItemsUI';
 import FaceAvatar from '@/components/FaceAvatar';
 import PersonNameInput from '@/components/PersonNameInput';
-import { HideIcon, MergeIcon, NotPersonIcon, PortraitIcon } from '@/components/icons/PersonIcons';
+import { NotPersonIcon, PortraitIcon } from '@/components/icons/PersonIcons';
 import { useRankedSearch } from '@/lib/hooks/useRankedSearch';
-import { fetchPerson, fetchPersons, mergePersons, personLabel, removeFromPerson, updatePerson } from '@/lib/persons';
+import { fetchPerson, personLabel, removeFromPerson, updatePerson } from '@/lib/persons';
 import { selectedItemsAtom } from '@/lib/atoms';
 import { Person } from '@/lib/types';
 
@@ -31,7 +31,6 @@ function PersonPageInner({ id }: { id: number }) {
   const [person, setPerson] = useState<Person | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState('');
-  const [merging, setMerging] = useState(false);
   const setSelectedItems = useSetAtom(selectedItemsAtom);
   const { items, setItems, isLoading, setIsLoading, search, loadMore, loadingMore, hasMore } = useRankedSearch();
 
@@ -121,15 +120,6 @@ function PersonPageInner({ id }: { id: number }) {
           placeholder={`Search photos of ${label}…`}
           className="bg-white/5 w-64 px-3 py-1 text-sm rounded-full border border-black/10 focus:outline-none focus:ring-1 focus:ring-black/50"
         />
-        <div className="flex items-center gap-1">
-          <button onClick={() => setMerging(true)} className="p-1 rounded-full hover:bg-black/5" title="Merge with someone else">
-            <MergeIcon />
-          </button>
-          <button onClick={() => save({ hidden: !person.hidden })} className="p-1 rounded-full hover:bg-black/5"
-            title={person.hidden ? 'Show on the People page' : 'Hide from the People page'}>
-            <HideIcon hidden={person.hidden} />
-          </button>
-        </div>
       </div>
 
       {!isLoading && items.length === 0 ? (
@@ -145,73 +135,11 @@ function PersonPageInner({ id }: { id: number }) {
         />
       )}
 
-      {merging && (
-        <MergeDialog
-          person={person}
-          onCancel={() => setMerging(false)}
-          onMerge={async (target) => {
-            setMerging(false);
-            try {
-              await mergePersons([person.id], target.id);
-              router.replace(`/people/${target.id}`);
-            } catch (e) {
-              setError((e as Error).message);
-            }
-          }}
-        />
-      )}
-
       {error && (
         <div className="fixed bottom-4 left-1/2 -translate-x-1/2 bg-black/80 text-white text-sm rounded-full px-4 py-1.5 z-30" onClick={() => setError(null)}>
           {error}
         </div>
       )}
-    </div>
-  );
-}
-
-// Pick who this person really is; their photos move to that person.
-function MergeDialog({ person, onCancel, onMerge }: {
-  person: Person, onCancel: () => void, onMerge: (target: Person) => void,
-}) {
-  const [persons, setPersons] = useState<Person[] | null>(null);
-  const [filter, setFilter] = useState('');
-
-  useEffect(() => {
-    fetchPersons(true).then((all) => setPersons(all.filter((p) => p.id !== person.id)));
-  }, [person.id]);
-
-  const shown = persons?.filter((p) => !filter || p.name?.toLowerCase().includes(filter.toLowerCase()));
-
-  return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={onCancel}>
-      <div className="bg-white/80 backdrop-blur-lg rounded-lg p-6 w-[min(640px,calc(100vw-32px))] max-h-[80vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
-        <p className="text-black/50 text-sm mb-3">
-          Who is {person.name ?? 'this'}? Their photos will be moved to that person.
-        </p>
-        <input
-          autoFocus
-          value={filter}
-          onChange={(e) => setFilter(e.target.value)}
-          onKeyDown={(e) => {
-            e.stopPropagation();
-            if (e.key === 'Escape') onCancel();
-          }}
-          placeholder="Filter by name"
-          className="bg-white px-3 py-1 text-sm rounded-full border border-black/10 focus:outline-none focus:ring-1 focus:ring-black/50 mb-4"
-        />
-        <div className="overflow-y-auto grid grid-cols-[repeat(auto-fill,minmax(80px,1fr))] gap-3">
-          {shown === undefined ? <LoadingSpinner size="small" /> : shown.map((p) => (
-            <button key={p.id} onClick={() => onMerge(p)} className="flex flex-col items-center gap-1 rounded-lg p-1 hover:bg-black/5 min-w-0">
-              <FaceAvatar person={p} size={64} />
-              <span className={`text-xs truncate max-w-full ${p.name ? 'text-black/70' : 'text-black/30'}`}>{personLabel(p)}</span>
-            </button>
-          ))}
-        </div>
-        <div className="flex justify-end mt-4">
-          <button onClick={onCancel} className="px-4 py-1 text-sm hover:bg-black/5 rounded-full">Cancel</button>
-        </div>
-      </div>
     </div>
   );
 }
