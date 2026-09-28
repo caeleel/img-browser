@@ -150,3 +150,13 @@ html {
     transition: none;
   }
 }
+
+/* iOS Safari zooms the page in when focusing a text field under 16px. On touch devices, keep every
+   field at 16px (overriding text-sm etc.) so focusing one never zooms. */
+@media (hover: none) and (pointer: coarse) {
+  input,
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
+}

@@ -335,6 +335,22 @@ export default function ImageViewer({
   const contentRef = useRef<HTMLDivElement>(null);
   const swipeTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   useEffect(() => () => clearTimeout(swipeTimer.current), []);
+
+  // iOS Safari starts its back/forward swipe for touches that begin at the screen edge, which
+  // fights photo swiping. Cancelling those touchstarts (needs a non-passive listener; React's are
+  // passive) stops it. Doesn't help in Chrome for iOS or with Android's system back gesture; the
+  // home-screen app has no such gesture at all.
+  useEffect(() => {
+    const content = contentRef.current;
+    if (!content || !isTouch) return;
+    const EDGE = 24;
+    const onTouchStart = (e: TouchEvent) => {
+      const x = e.touches[0]?.clientX ?? EDGE;
+      if (x < EDGE || x > window.innerWidth - EDGE) e.preventDefault();
+    };
+    content.addEventListener('touchstart', onTouchStart, { passive: false });
+    return () => content.removeEventListener('touchstart', onTouchStart);
+  }, [isTouch]);
   const canSwipe = isTouch && image.type !== 'video' && scale === 1 && !swipeSettling;
   const previousUrl = isTouch ? viewUrl(allImages[idx - 1]) : undefined;
   const nextUrl = isTouch ? viewUrl(allImages[idx + 1]) : undefined;
