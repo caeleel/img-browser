@@ -99,7 +99,8 @@ export default function TopBar({ onPrevious, onNext, onClose, toggleFullscreen, 
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
         </svg>
       </button>
-      <h2 className="text-sm font-medium">
+      {/* Name and position are the first things to go on narrow screens */}
+      <h2 className="text-sm font-medium hidden sm:block">
         {image.metadata?.id ? (
           editing === 'name' ? (
             <input
