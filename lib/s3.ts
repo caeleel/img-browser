@@ -46,26 +46,13 @@ export function clearS3Cache() {
   cachedS3Client = null;
 }
 
+// Downloads through the (stable) signed URL rather than the SDK so the browser's HTTP cache is used.
 export async function fetchFile(key: string): Promise<string> {
-  const s3Client = getS3Client();
-
-  const command = new GetObjectCommand({
-    Bucket: BUCKET_NAME,
-    Key: key,
-  });
-
-  const response = await s3Client.send(command);
-
-  if (!response.Body) {
-    throw new Error('No file content received');
+  const response = await fetch(await signedUrl(key));
+  if (!response.ok) {
+    throw new Error(`Failed to fetch ${key}: ${response.status}`);
   }
-
-  const responseArrayBuffer = await response.Body.transformToByteArray();
-  const blob = new Blob([responseArrayBuffer], {
-    type: response.ContentType || 'application/octet-stream'
-  });
-
-  return URL.createObjectURL(blob);
+  return URL.createObjectURL(await response.blob());
 }
 
 export async function listContents(path: string, continuationToken?: string): Promise<S3Response> {
@@ -93,16 +80,28 @@ export async function listContents(path: string, continuationToken?: string): Pr
   };
 }
 
+// Signed GET URLs are signed as of the start of a fixed window instead of "now", so the same key
+// gives the same URL for SIGNING_WINDOW_MS and the browser cache (keyed by URL) can hit. Every URL
+// stays valid for at least URL_LIFETIME_S - SIGNING_WINDOW_MS (4 days). 7 days is SigV4's maximum.
+const SIGNING_WINDOW_MS = 3 * 24 * 60 * 60 * 1000;
+const URL_LIFETIME_S = 7 * 24 * 60 * 60;
+// Photos never change under the same key, so let the browser keep them without revalidating
+const CACHE_CONTROL = `private, max-age=${URL_LIFETIME_S}, immutable`;
+
 export async function signedUrl(key: string): Promise<string> {
   const s3Client = getS3Client();
 
   const command = new GetObjectCommand({
     Bucket: BUCKET_NAME,
     Key: key,
+    ResponseCacheControl: CACHE_CONTROL,
   });
 
-  // URL expires in 1 hour
-  return getSignedUrl(s3Client, command, { expiresIn: 3600 });
+  const now = Date.now();
+  return getSignedUrl(s3Client, command, {
+    expiresIn: URL_LIFETIME_S,
+    signingDate: new Date(now - (now % SIGNING_WINDOW_MS)),
+  });
 }
 
 export async function getSignedPutUrl(key: string, contentType: string): Promise<string> {
