@@ -49,7 +49,7 @@ export async function PATCH(request: Request, { params }: Params) {
   if (Number.isInteger(coverImageId)) {
     const { rowCount } = await sql.query(`
       UPDATE persons SET cover_face_id = (
-        SELECT f.id FROM faces f WHERE f.person_id = $1 AND f.image_id = $2 ORDER BY f.det_score DESC LIMIT 1
+        SELECT f.id FROM faces f WHERE f.person_id = $1 AND f.image_id = $2 ORDER BY f.det_score DESC NULLS LAST LIMIT 1
       )
       WHERE id = $1 AND EXISTS (SELECT 1 FROM faces f WHERE f.person_id = $1 AND f.image_id = $2)
     `, [id, coverImageId]);
@@ -79,7 +79,7 @@ export async function DELETE(request: Request, { params }: Params) {
   // Keep the cover pointing at one of the person's remaining faces
   await sql.query(`
     UPDATE persons p SET cover_face_id = (
-      SELECT f.id FROM faces f WHERE f.person_id = p.id ORDER BY f.det_score DESC LIMIT 1
+      SELECT f.id FROM faces f WHERE f.person_id = p.id ORDER BY f.det_score DESC NULLS LAST LIMIT 1
     )
     WHERE p.id = $1 AND (p.cover_face_id IS NULL OR NOT EXISTS (
       SELECT 1 FROM faces f WHERE f.id = p.cover_face_id AND f.person_id = p.id

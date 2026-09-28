@@ -62,7 +62,9 @@ def main():
 
     with psycopg.connect(DB_URL) as conn:
         rows = conn.execute("""
-            SELECT id, image_id, embedding::text, person_id, user_assigned FROM faces ORDER BY id
+            SELECT id, image_id, embedding::text, person_id, user_assigned FROM faces
+            WHERE embedding IS NOT NULL  -- hand-drawn tags have none and never move
+            ORDER BY id
         """).fetchall()
         if not rows:
             print("No faces yet; run scripts/index_faces.py first")

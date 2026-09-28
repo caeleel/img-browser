@@ -87,5 +87,7 @@ export interface Person {
 // A detected face in a photo and who it is, if anyone
 export interface Face extends FaceBox {
   id: number;
+  // Drawn by hand in the viewer (no detection or embedding)
+  manual: boolean;
   person: { id: number, name: string | null, hidden: boolean } | null;
 }

@@ -100,16 +100,38 @@ export async function imageIdsWithPersons(personIds: number[]): Promise<number[]
 export async function getFacesInImage(imageId: number): Promise<Face[]> {
   const { rows } = await sql.query<{
     id: number, x: number, y: number, width: number, height: number,
-    person_id: number | null, name: string | null, hidden: boolean | null,
+    person_id: number | null, name: string | null, hidden: boolean | null, manual: boolean,
   }>(`
-    SELECT f.id, f.x, f.y, f.width, f.height, f.person_id, p.name, p.hidden
+    SELECT f.id, f.x, f.y, f.width, f.height, f.person_id, p.name, p.hidden, f.embedding IS NULL AS manual
     FROM faces f
     LEFT JOIN persons p ON p.id = f.person_id
     WHERE f.image_id = $1
     ORDER BY f.x
   `, [imageId]);
   return rows.map((row) => ({
-    id: row.id, x: row.x, y: row.y, width: row.width, height: row.height,
+    id: row.id, x: row.x, y: row.y, width: row.width, height: row.height, manual: row.manual,
     person: row.person_id === null ? null : { id: row.person_id, name: row.name, hidden: row.hidden ?? false },
   }));
+}
+
+// Resolves a tag to a person id: an existing person, or one found/created by name (a new person's
+// cover is the tagged face). Returns null for "nobody" (untag).
+export async function resolveTag(
+  tag: { personId?: number | null, newPersonName?: string }, faceId: number,
+): Promise<number | null | 'invalid' | 'not found'> {
+  const name = tag.newPersonName?.trim().slice(0, 100);
+  if (name) {
+    const { rows: [existing] } = await sql.query<{ id: number }>(
+      'SELECT id FROM persons WHERE lower(name) = lower($1) ORDER BY id LIMIT 1', [name]
+    );
+    if (existing) return existing.id;
+    const { rows: [created] } = await sql.query<{ id: number }>(
+      'INSERT INTO persons (name, cover_face_id) VALUES ($1, $2) RETURNING id', [name, faceId]
+    );
+    return created.id;
+  }
+  if (tag.personId === null) return null;
+  if (!Number.isInteger(tag.personId)) return 'invalid';
+  const { rowCount } = await sql.query('SELECT 1 FROM persons WHERE id = $1', [tag.personId]);
+  return rowCount ? tag.personId! : 'not found';
 }

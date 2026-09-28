@@ -3,19 +3,24 @@
 import Link from 'next/link';
 import { RefObject, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Face, Person, Vector2 } from '@/lib/types';
-import { cachedPersons, fetchFaces, tagFace } from '@/lib/persons';
+import { Face, FaceBox, Person, Vector2 } from '@/lib/types';
+import { addFace, cachedPersons, fetchFaces, tagFace } from '@/lib/persons';
 import FaceAvatar from './FaceAvatar';
 
 // Faces per image id, so flipping back and forth doesn't refetch
 const facesCache = new Map<number, Face[]>();
 
 type Rect = { left: number, top: number, width: number, height: number };
+type Tag = { personId: number | null } | { newPersonName: string };
+
+// Hand-drawn boxes smaller than this (fraction of the photo) are treated as a stray click
+const MIN_BOX = 0.01;
 
 // Boxes around each detected face in the viewer, labelled with who it is; clicking a label opens a
 // picker to tag or correct the face. Face boxes are fractions of the displayed photo, and the photo
 // is drawn object-contain inside imageRef with the viewer's pan/zoom transform, so the overlay
-// covers the same box and copies the transform.
+// covers the same box and copies the transform. "Tag someone" lets the user drag a box around a face
+// the detector missed and tag it.
 export default function FaceTags({ imageId, imageRef, imageUrl, scale, position }: {
   imageId: number,
   imageRef: RefObject<HTMLImageElement | null>,
@@ -25,11 +30,37 @@ export default function FaceTags({ imageId, imageRef, imageUrl, scale, position 
 }) {
   const [faces, setFaces] = useState<Face[] | null>(facesCache.get(imageId) ?? null);
   const [frame, setFrame] = useState<{ element: Rect, photo: Rect } | null>(null);
-  const [picking, setPicking] = useState<{ face: Face, anchor: DOMRect } | null>(null);
+  // face is null while tagging a newly drawn box
+  const [picking, setPicking] = useState<{ face: Face | null, anchor: DOMRect } | null>(null);
+  const [drawing, setDrawing] = useState(false);
+  const [draft, setDraft] = useState<FaceBox | null>(null);
+  const dragStart = useRef<{ x: number, y: number } | null>(null);
+  const photoRef = useRef<HTMLDivElement>(null);
+  const draftRef = useRef<HTMLDivElement>(null);
+
+  const stopDrawing = () => {
+    setDrawing(false);
+    setDraft(null);
+    dragStart.current = null;
+  };
+
+  // Escape leaves drawing mode instead of closing the viewer (which listens on document)
+  useEffect(() => {
+    if (!drawing) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      e.stopPropagation();
+      stopDrawing();
+      setPicking(null);
+    };
+    window.addEventListener('keydown', onKey, true);
+    return () => window.removeEventListener('keydown', onKey, true);
+  }, [drawing]);
 
   useEffect(() => {
     let cancelled = false;
     setPicking(null);
+    stopDrawing();
     setFaces(facesCache.get(imageId) ?? null);
     fetchFaces(imageId).then((result) => {
       facesCache.set(imageId, result);
@@ -62,15 +93,59 @@ export default function FaceTags({ imageId, imageRef, imageUrl, scale, position 
     };
   }, [imageRef, imageUrl]);
 
-  const save = async (face: Face, tag: Parameters<typeof tagFace>[1]) => {
+  const save = async (face: Face | null, tag: Tag) => {
     setPicking(null);
+    const box = draft;
+    stopDrawing();
     try {
-      const result = await tagFace(face.id, tag);
+      let result: Face[];
+      if (face) result = await tagFace(face.id, tag);
+      else if (!box) return;
+      else if ('newPersonName' in tag) result = await addFace(imageId, box, tag);
+      else if (tag.personId !== null) result = await addFace(imageId, box, { personId: tag.personId });
+      else return;
       facesCache.set(imageId, result);
       setFaces(result);
     } catch (error) {
       console.error('Failed to tag face:', error);
     }
+  };
+
+  // Pointer position as a fraction of the photo; the bounding rect already includes pan/zoom
+  const toPhoto = (e: React.PointerEvent) => {
+    const rect = photoRef.current!.getBoundingClientRect();
+    return {
+      x: Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width)),
+      y: Math.max(0, Math.min(1, (e.clientY - rect.top) / rect.height)),
+    };
+  };
+
+  const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    e.stopPropagation();
+    setPicking(null);
+    e.currentTarget.setPointerCapture(e.pointerId);
+    dragStart.current = toPhoto(e);
+    setDraft({ ...dragStart.current, width: 0, height: 0 });
+  };
+
+  const onPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    const start = dragStart.current;
+    if (!start) return;
+    const point = toPhoto(e);
+    setDraft({
+      x: Math.min(start.x, point.x), y: Math.min(start.y, point.y),
+      width: Math.abs(point.x - start.x), height: Math.abs(point.y - start.y),
+    });
+  };
+
+  const onPointerUp = () => {
+    dragStart.current = null;
+    if (!draft || draft.width < MIN_BOX || draft.height < MIN_BOX) {
+      setDraft(null);
+      return;
+    }
+    const anchor = draftRef.current?.getBoundingClientRect();
+    if (anchor) setPicking({ face: null, anchor });
   };
 
   if (!faces || !frame) return null;
@@ -85,7 +160,7 @@ export default function FaceTags({ imageId, imageRef, imageUrl, scale, position 
           transformOrigin: 'center',
         }}
       >
-        <div className="absolute" style={frame.photo}>
+        <div ref={photoRef} className="absolute" style={frame.photo}>
           {faces.map((face) => {
             // Unnamed (or hidden) faces stay quiet until hovered, so crowds don't bury the photo
             const known = face.person?.name != null && !face.person.hidden;
@@ -97,13 +172,14 @@ export default function FaceTags({ imageId, imageRef, imageUrl, scale, position 
               <div
                 key={face.id}
                 onClick={open}
-                className="group absolute rounded-md pointer-events-auto cursor-pointer shadow-[0_0_0_1px_rgba(0,0,0,0.25)]"
+                className={`group absolute rounded-md cursor-pointer shadow-[0_0_0_1px_rgba(0,0,0,0.25)] ${drawing ? '' : 'pointer-events-auto'}`}
                 style={{
                   left: `${face.x * 100}%`,
                   top: `${face.y * 100}%`,
                   width: `${face.width * 100}%`,
                   height: `${face.height * 100}%`,
-                  border: `${1.5 / scale}px solid rgba(255,255,255,${known ? 0.9 : 0.45})`,
+                  // Hand-drawn boxes are dashed
+                  border: `${1.5 / scale}px ${face.manual ? 'dashed' : 'solid'} rgba(255,255,255,${known ? 0.9 : 0.45})`,
                 }}
               >
                 {/* Label stays the same size while zoomed */}
@@ -121,14 +197,49 @@ export default function FaceTags({ imageId, imageRef, imageUrl, scale, position 
               </div>
             );
           })}
+          {drawing && (
+            <div
+              className="absolute inset-0 pointer-events-auto cursor-crosshair touch-none"
+              onPointerDown={onPointerDown}
+              onPointerMove={onPointerMove}
+              onPointerUp={onPointerUp}
+            />
+          )}
+          {draft && (
+            <div
+              ref={draftRef}
+              className="absolute rounded-md pointer-events-none bg-white/10 shadow-[0_0_0_1px_rgba(0,0,0,0.25)]"
+              style={{
+                left: `${draft.x * 100}%`,
+                top: `${draft.y * 100}%`,
+                width: `${draft.width * 100}%`,
+                height: `${draft.height * 100}%`,
+                border: `${1.5 / scale}px dashed rgba(255,255,255,0.9)`,
+              }}
+            />
+          )}
         </div>
+      </div>
+
+      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10 flex items-center gap-2 rounded-full bg-black/70 backdrop-blur-md text-white text-xs shadow px-1 py-1">
+        {drawing ? <>
+          <span className="pl-2">Drag a box around a face</span>
+          <button onClick={() => { stopDrawing(); setPicking(null); }} className="rounded-full px-2 py-0.5 hover:bg-white/15">Cancel</button>
+        </> : (
+          <button onClick={() => { setPicking(null); setDrawing(true); }} className="rounded-full px-2 py-0.5 hover:bg-white/15">
+            + Tag someone
+          </button>
+        )}
       </div>
 
       {picking && createPortal(
         <TagPicker
           face={picking.face}
           anchor={picking.anchor}
-          onClose={() => setPicking(null)}
+          onClose={() => {
+            setPicking(null);
+            if (!picking.face) setDraft(null);  // drawn box abandoned; draw another
+          }}
           onPick={(tag) => save(picking.face, tag)}
         />,
         document.body
@@ -139,10 +250,10 @@ export default function FaceTags({ imageId, imageRef, imageUrl, scale, position 
 
 // "Who is this?": filter named people, pick one, or type a new name. Enter picks the top option.
 function TagPicker({ face, anchor, onClose, onPick }: {
-  face: Face,
+  face: Face | null,
   anchor: DOMRect,
   onClose: () => void,
-  onPick: (tag: { personId: number | null } | { newPersonName: string }) => void,
+  onPick: (tag: Tag) => void,
 }) {
   const [persons, setPersons] = useState<Person[] | null>(null);
   const [query, setQuery] = useState('');
@@ -162,8 +273,8 @@ function TagPicker({ face, anchor, onClose, onPick }: {
 
   const text = query.trim();
   const matches = useMemo(() => (persons ?? [])
-    .filter((p) => p.name && p.id !== face.person?.id && (!text || p.name.toLowerCase().includes(text.toLowerCase())))
-    .slice(0, 6), [persons, text, face.person?.id]);
+    .filter((p) => p.name && p.id !== face?.person?.id && (!text || p.name.toLowerCase().includes(text.toLowerCase())))
+    .slice(0, 6), [persons, text, face?.person?.id]);
   const exact = persons?.some((p) => p.name?.toLowerCase() === text.toLowerCase());
 
   const width = 256;
@@ -188,7 +299,7 @@ function TagPicker({ face, anchor, onClose, onPick }: {
             else if (text) onPick({ newPersonName: text });
           }
         }}
-        placeholder={face.person?.name ? `Not ${face.person.name}? Who is this?` : 'Who is this?'}
+        placeholder={face?.person?.name ? `Not ${face.person.name}? Who is this?` : 'Who is this?'}
         className="w-full bg-transparent px-2 py-1.5 outline-none placeholder:text-black/35"
       />
       <div className="border-t border-black/5 pt-1">
@@ -207,7 +318,7 @@ function TagPicker({ face, anchor, onClose, onPick }: {
             Add “{text}” as a new person
           </button>
         )}
-        {face.person && (
+        {face?.person && (
           <div className="border-t border-black/5 mt-1 pt-1">
             {face.person.name && (
               <Link href={`/people/${face.person.id}`} className="block rounded-md px-2 py-1.5 hover:bg-black/5 text-black/60">

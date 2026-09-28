@@ -1,5 +1,5 @@
 import { getCredentials } from './s3';
-import { Face, Person } from './types';
+import { Face, FaceBox, Person } from './types';
 
 // Client-side calls for the People pages (API in app/api/persons).
 
@@ -72,6 +72,18 @@ export async function tagFace(faceId: number, tag: { personId: number | null } |
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ ...tag, credentials: getCredentials() }),
+  });
+  if (!response.ok) throw new Error((await response.json()).error ?? 'Failed to tag face');
+  personsCache = null;
+  return response.json();
+}
+
+// Tag someone in a box drawn by hand (fractions of the displayed photo). Returns the photo's faces.
+export async function addFace(imageId: number, box: FaceBox, tag: { personId: number } | { newPersonName: string }): Promise<Face[]> {
+  const response = await fetch('/api/faces', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ imageId, ...box, ...tag, credentials: getCredentials() }),
   });
   if (!response.ok) throw new Error((await response.json()).error ?? 'Failed to tag face');
   personsCache = null;
