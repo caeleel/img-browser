@@ -1,5 +1,5 @@
 import { getCredentials } from './s3';
-import { Person } from './types';
+import { Face, Person } from './types';
 
 // Client-side calls for the People pages (API in app/api/persons).
 
@@ -48,4 +48,32 @@ export function mergePersons(sourceIds: number[], targetId: number) {
 
 export function personLabel(person: Person) {
   return person.name ?? 'Unnamed';
+}
+
+// Named-person list for the tag picker, shared across photos until something changes it
+let personsCache: Promise<Person[]> | null = null;
+export function cachedPersons() {
+  personsCache ??= fetchPersons(true).catch((error) => {
+    personsCache = null;
+    throw error;
+  });
+  return personsCache;
+}
+
+export async function fetchFaces(imageId: number): Promise<Face[]> {
+  const response = await fetch(`/api/faces?imageId=${imageId}`, { headers: authHeaders() });
+  if (!response.ok) throw new Error('Failed to load faces');
+  return response.json();
+}
+
+// Tag a face: an existing person, a new person by name, or null to untag. Returns the photo's faces.
+export async function tagFace(faceId: number, tag: { personId: number | null } | { newPersonName: string }): Promise<Face[]> {
+  const response = await fetch(`/api/faces/${faceId}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ...tag, credentials: getCredentials() }),
+  });
+  if (!response.ok) throw new Error((await response.json()).error ?? 'Failed to tag face');
+  personsCache = null;
+  return response.json();
 }

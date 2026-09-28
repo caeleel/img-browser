@@ -12,9 +12,12 @@ import { Minimap } from './Minimap';
 import TopBar from './TopBar';
 import LoadingSpinner from './LoadingSpinner';
 import VideoPlayer from './VideoPlayer';
+import FaceTags from './FaceTags';
 
 let lastScale = 1;
 let lastPosition = { x: 0, y: 0 };
+// Face tags stay on or off as you move between photos (and reopen the viewer)
+let lastShowFaces = false;
 
 export default function ImageViewer({
   idx = 0,
@@ -37,6 +40,11 @@ export default function ImageViewer({
   const imageRef = useRef<HTMLImageElement & HTMLVideoElement>(null);
   const image = allImages[idx];
   const [showInfo, setShowInfo] = useState(false);
+  const [showFaces, setShowFacesState] = useState(lastShowFaces);
+  const setShowFaces = (show: boolean) => {
+    lastShowFaces = show;
+    setShowFacesState(show);
+  };
   const [showFilmstrip, setShowFilmstrip] = useState(true);
   const [editing, setEditing] = useState<string | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -210,6 +218,10 @@ export default function ImageViewer({
         setShowFilmstrip(prev => !prev);
         blur(e);
         break;
+      case 'p':
+        setShowFaces(!lastShowFaces);
+        blur(e);
+        break;
     }
   }, [onClose, onNext, onPrevious, hasNext, hasPrevious, editing]);
 
@@ -295,6 +307,8 @@ export default function ImageViewer({
         isFullscreen={isFullscreen}
         editing={editing}
         setEditing={setEditing}
+        showFaces={showFaces}
+        setShowFaces={image.type === 'image' && image.metadata?.id ? setShowFaces : undefined}
       />
 
       {/* Main content */}
@@ -319,6 +333,15 @@ export default function ImageViewer({
               onMouseLeave={handleMouseUp}
               draggable={false}
             />
+            {showFaces && image.metadata?.id ? (
+              <FaceTags
+                imageId={image.metadata.id}
+                imageRef={imageRef}
+                imageUrl={image.blobUrl}
+                scale={scale}
+                position={position}
+              />
+            ) : null}
             <Minimap
               thumbnailUrl={image.thumbnailBlobUrl || image.blobUrl}
               orientation={image.metadata?.orientation}

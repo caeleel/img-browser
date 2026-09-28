@@ -4,8 +4,9 @@ import { Dispatch, SetStateAction, useState } from "react";
 import CloseIcon from "./icons/CloseIcon";
 import { ItemsUI } from "./SelectedItemsUI";
 import ShowInFolderButton from "./ShowInFolderButton";
+import { PortraitIcon } from "./icons/PersonIcons";
 
-export default function TopBar({ onPrevious, onNext, onClose, toggleFullscreen, setShowInfo, image, showFilmstrip, idx, total, isFullscreen, editing, setEditing }: {
+export default function TopBar({ onPrevious, onNext, onClose, toggleFullscreen, setShowInfo, image, showFilmstrip, idx, total, isFullscreen, editing, setEditing, showFaces, setShowFaces }: {
   onPrevious?: () => void,
   onNext?: () => void,
   onClose: (deleteImage?: boolean) => void,
@@ -18,6 +19,9 @@ export default function TopBar({ onPrevious, onNext, onClose, toggleFullscreen, 
   setEditing: Dispatch<SetStateAction<string | null>>,
   toggleFullscreen: () => void,
   setShowInfo: Dispatch<SetStateAction<boolean>>,
+  showFaces: boolean,
+  // Omitted when the photo can't have face tags (videos, files outside the library)
+  setShowFaces?: (show: boolean) => void,
 }) {
   const hasPrevious = idx > 0;
   const hasNext = idx < total - 1;
@@ -68,6 +72,17 @@ export default function TopBar({ onPrevious, onNext, onClose, toggleFullscreen, 
           <path d="M12.5 9C12.5 9.27614 12.2761 9.5 12 9.5C11.7239 9.5 11.5 9.27614 11.5 9C11.5 8.72386 11.7239 8.5 12 8.5C12.2761 8.5 12.5 8.72386 12.5 9Z" fill="white" />
         </svg>
       </button>
+      {setShowFaces && (
+        <button
+          onClick={() => setShowFaces(!showFaces)}
+          className={`rounded-md ml-1 ${showFaces ? 'bg-white/20' : 'hover:bg-white/10'}`}
+          aria-label={showFaces ? 'Hide people' : 'Show people'}
+          aria-pressed={showFaces}
+          title={`${showFaces ? 'Hide' : 'Show'} people (p)`}
+        >
+          <PortraitIcon color="white" />
+        </button>
+      )}
       <ItemsUI altStyle selectedItems={{ [image.path]: image }} deleteCallback={() => onClose(true)} />
       <div className="ml-2 flex items-center">
         <ShowInFolderButton image={image} />

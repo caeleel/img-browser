@@ -11,9 +11,10 @@ import LoadingSpinner from '@/components/LoadingSpinner';
 import SelectedItemsUI from '@/components/SelectedItemsUI';
 import FaceAvatar from '@/components/FaceAvatar';
 import PersonNameInput from '@/components/PersonNameInput';
+import SamePersonDialog from '@/components/SamePersonDialog';
 import { NotPersonIcon, PortraitIcon } from '@/components/icons/PersonIcons';
 import { useRankedSearch } from '@/lib/hooks/useRankedSearch';
-import { fetchPerson, personLabel, removeFromPerson, updatePerson } from '@/lib/persons';
+import { fetchPerson, fetchPersons, mergePersons, personLabel, removeFromPerson, updatePerson } from '@/lib/persons';
 import { selectedItemsAtom } from '@/lib/atoms';
 import { Person } from '@/lib/types';
 
@@ -31,6 +32,8 @@ function PersonPageInner({ id }: { id: number }) {
   const [person, setPerson] = useState<Person | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState('');
+  // Renaming to a name someone else already has asks to merge into them
+  const [sameAs, setSameAs] = useState<Person | null>(null);
   const setSelectedItems = useSetAtom(selectedItemsAtom);
   const { items, setItems, isLoading, setIsLoading, search, loadMore, loadingMore, hasMore } = useRankedSearch();
 
@@ -45,6 +48,36 @@ function PersonPageInner({ id }: { id: number }) {
     if (!person) return;
     try {
       setPerson(await updatePerson(person.id, changes));
+    } catch (e) {
+      setError((e as Error).message);
+    }
+  };
+
+  const rename = async (name: string | null) => {
+    if (!person) return;
+    if (name) {
+      try {
+        const existing = (await fetchPersons(true))
+          .find((p) => p.id !== person.id && p.name?.toLowerCase() === name.toLowerCase());
+        if (existing) {
+          setSameAs(existing);
+          return;
+        }
+      } catch (e) {
+        setError((e as Error).message);
+        return;
+      }
+    }
+    save({ name });
+  };
+
+  const mergeIntoSameAs = async () => {
+    if (!person || !sameAs) return;
+    const target = sameAs;
+    setSameAs(null);
+    try {
+      await mergePersons([person.id], target.id);
+      router.replace(`/people/${target.id}`);
     } catch (e) {
       setError((e as Error).message);
     }
@@ -102,10 +135,10 @@ function PersonPageInner({ id }: { id: number }) {
       />
       <Header />
 
-      <div className="max-w-7xl mx-auto px-8 pt-8 flex flex-wrap items-center gap-x-5 gap-y-3">
-        <FaceAvatar person={person} size={72} />
+      <div className="max-w-7xl mx-auto px-8 pt-8 flex flex-wrap items-center gap-x-4 gap-y-3">
+        <FaceAvatar person={person} size={48} />
         <div className="flex flex-col min-w-0 mr-auto">
-          <PersonNameInput person={person} onSave={(name) => save({ name })} className="text-xl" />
+          <PersonNameInput person={person} onSave={rename} className="text-xl" />
           <span className="text-sm text-black/40">{person.photoCount} photo{person.photoCount === 1 ? '' : 's'}</span>
         </div>
         <input
@@ -133,6 +166,10 @@ function PersonPageInner({ id }: { id: number }) {
           loadingMore={loadingMore}
           onDelete={(path) => setItems(items.filter(item => item.path !== path))}
         />
+      )}
+
+      {sameAs && (
+        <SamePersonDialog source={person} target={sameAs} onCancel={() => setSameAs(null)} onConfirm={mergeIntoSameAs} />
       )}
 
       {error && (

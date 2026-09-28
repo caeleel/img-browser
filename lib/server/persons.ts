@@ -1,5 +1,5 @@
 import { sql } from '@vercel/postgres';
-import { Person } from '@/lib/types';
+import { Face, Person } from '@/lib/types';
 
 // Server-only helpers for face-based person search (tables from db/migrate_faces.sql).
 
@@ -60,7 +60,9 @@ export async function getPerson(id: number): Promise<Person | null> {
 // with the query text left over once their names are taken out.
 export async function extractPersons(query: string): Promise<{ persons: Person[], rest: string }> {
   const { rows } = await sql.query<{ id: number, name: string }>(
-    'SELECT id, name FROM persons WHERE name IS NOT NULL AND $1 ILIKE \'%\' || name || \'%\'', [query]
+    `SELECT id, name FROM persons p
+     WHERE name IS NOT NULL AND $1 ILIKE '%' || name || '%'
+       AND EXISTS (SELECT 1 FROM faces f WHERE f.person_id = p.id)`, [query]
   );
   // Longest names first so "Ann Lee" wins over "Ann"
   rows.sort((a, b) => b.name.length - a.name.length);
@@ -93,4 +95,21 @@ export async function imageIdsWithPersons(personIds: number[]): Promise<number[]
     ORDER BY max(m.taken_at) DESC NULLS LAST, m.id DESC
   `, [personIds]);
   return rows.map((row) => row.id);
+}
+
+export async function getFacesInImage(imageId: number): Promise<Face[]> {
+  const { rows } = await sql.query<{
+    id: number, x: number, y: number, width: number, height: number,
+    person_id: number | null, name: string | null, hidden: boolean | null,
+  }>(`
+    SELECT f.id, f.x, f.y, f.width, f.height, f.person_id, p.name, p.hidden
+    FROM faces f
+    LEFT JOIN persons p ON p.id = f.person_id
+    WHERE f.image_id = $1
+    ORDER BY f.x
+  `, [imageId]);
+  return rows.map((row) => ({
+    id: row.id, x: row.x, y: row.y, width: row.width, height: row.height,
+    person: row.person_id === null ? null : { id: row.person_id, name: row.name, hidden: row.hidden ?? false },
+  }));
 }

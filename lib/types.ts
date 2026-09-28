@@ -83,3 +83,9 @@ export interface Person {
   dayCount: number;
   cover: (FaceBox & { path: string, orientation: number | null }) | null;
 }
+
+// A detected face in a photo and who it is, if anyone
+export interface Face extends FaceBox {
+  id: number;
+  person: { id: number, name: string | null, hidden: boolean } | null;
+}

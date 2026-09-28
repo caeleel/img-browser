@@ -7,6 +7,7 @@ import FullscreenContainer from '@/components/FullscreenContainer';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import FaceAvatar from '@/components/FaceAvatar';
 import PersonNameInput from '@/components/PersonNameInput';
+import SamePersonDialog from '@/components/SamePersonDialog';
 import { Person } from '@/lib/types';
 import { fetchPersons, mergePersons, updatePerson } from '@/lib/persons';
 
@@ -104,25 +105,12 @@ export default function PeoplePage() {
       )}
 
       {pendingMerge && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white/70 backdrop-blur-lg rounded-lg p-6 max-w-sm">
-            <div className="flex justify-center gap-4 mb-4">
-              <FaceAvatar person={pendingMerge.source} size={64} />
-              <FaceAvatar person={pendingMerge.target} size={64} />
-            </div>
-            <p className="text-black/50 mb-6 text-sm">
-              Someone is already named {pendingMerge.target.name}. Are these the same person? Their photos will be combined.
-            </p>
-            <div className="flex justify-end gap-2">
-              <button onClick={() => setPendingMerge(null)} className="px-4 py-1 text-sm hover:bg-black/5 rounded-full">
-                Cancel
-              </button>
-              <button onClick={confirmMerge} className="px-4 py-1 text-sm bg-black text-white rounded-full hover:bg-black/80">
-                Same person
-              </button>
-            </div>
-          </div>
-        </div>
+        <SamePersonDialog
+          source={pendingMerge.source}
+          target={pendingMerge.target}
+          onCancel={() => setPendingMerge(null)}
+          onConfirm={confirmMerge}
+        />
       )}
     </div>
   );
