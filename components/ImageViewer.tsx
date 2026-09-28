@@ -316,6 +316,14 @@ export default function ImageViewer({
     };
   }, [imageRef, idx, editing, image]);
 
+  // Until the full photo arrives, show its thumbnail (already loaded for the grid/filmstrip) so
+  // swiping to a new photo shows something immediately. Thumbnails the app rotates with CSS
+  // (orientation 6/8) would show sideways here, so those wait for the full photo.
+  const thumbnailStandIn = image.type === 'image' && !image.blobUrl && image.thumbnailBlobUrl
+    && image.metadata?.orientation !== 6 && image.metadata?.orientation !== 8
+    ? image.thumbnailBlobUrl : undefined;
+  const displayUrl = image.blobUrl ?? thumbnailStandIn;
+
   // Swiping sideways on the photo moves between photos (touch only, not while zoomed or on videos)
   const canSwipe = isTouch && image.type !== 'video' && scale === 1;
   const handleTouchStart = (e: React.TouchEvent) => {
@@ -394,11 +402,11 @@ export default function ImageViewer({
         {/* Image container */}
         {image.type === 'video' && image.blobUrl ? (
           <VideoPlayer key={image.path} video={image} />
-        ) : image.blobUrl ? (
+        ) : displayUrl ? (
           <>
             <img
               ref={imageRef}
-              src={image.blobUrl}
+              src={displayUrl}
               alt={image.name}
               className={`w-full h-full object-contain transition-none cursor-${scale > 1 ? 'grab' : 'default'} ${isDragging ? 'cursor-grabbing' : ''}`}
               style={{
@@ -417,23 +425,29 @@ export default function ImageViewer({
               <FaceTags
                 imageId={image.metadata.id}
                 imageRef={imageRef}
-                imageUrl={image.blobUrl}
+                imageUrl={displayUrl}
                 scale={scale}
                 position={{ x: position.x + swipeX, y: position.y }}
               />
             ) : null}
-            <Minimap
-              thumbnailUrl={image.thumbnailBlobUrl || image.blobUrl}
-              orientation={image.metadata?.orientation}
-              scale={scale}
-              position={position}
-              imageRef={imageRef}
-              onPositionChange={setPos}
-            />
+            {image.blobUrl ? (
+              <Minimap
+                thumbnailUrl={image.thumbnailBlobUrl || image.blobUrl}
+                orientation={image.metadata?.orientation}
+                scale={scale}
+                position={position}
+                imageRef={imageRef}
+                onPositionChange={setPos}
+              />
+            ) : (
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                <LoadingSpinner size="large" light={immersive} />
+              </div>
+            )}
           </>
         ) : (
           <div className="flex-1">
-            <LoadingSpinner size="large" />
+            <LoadingSpinner size="large" light={immersive} />
           </div>
         )}
       </div>
