@@ -44,6 +44,16 @@ export default function PeoplePage() {
     }
   };
 
+  const setHidden = async (person: Person, hidden: boolean) => {
+    replace({ ...person, hidden });
+    try {
+      replace(await updatePerson(person.id, { hidden }));
+    } catch (e) {
+      replace(person);
+      setError((e as Error).message);
+    }
+  };
+
   const confirmMerge = async () => {
     if (!pendingMerge) return;
     const { source, target } = pendingMerge;
@@ -80,13 +90,13 @@ export default function PeoplePage() {
         </FullscreenContainer>
       ) : (
         <div className="max-w-7xl mx-auto p-8 pb-20">
-          <PersonGrid persons={visible} onRename={rename} />
+          <PersonGrid persons={visible} onRename={rename} onSetHidden={setHidden} />
           {rare.length > 0 && (
             <div className="mt-12">
               <button onClick={() => setShowRare(!showRare)} className="text-sm text-black/40 hover:text-black/70">
                 {showRare ? 'Hide' : 'Show'} people seen on only one day ({rare.length})
               </button>
-              {showRare && <div className="mt-6"><PersonGrid persons={rare} onRename={rename} /></div>}
+              {showRare && <div className="mt-6"><PersonGrid persons={rare} onRename={rename} onSetHidden={setHidden} /></div>}
             </div>
           )}
           {hidden.length > 0 && (
@@ -94,7 +104,7 @@ export default function PeoplePage() {
               <button onClick={() => setShowHidden(!showHidden)} className="text-sm text-black/40 hover:text-black/70">
                 {showHidden ? 'Hide' : 'Show'} hidden people ({hidden.length})
               </button>
-              {showHidden && <div className="mt-6 opacity-60"><PersonGrid persons={hidden} onRename={rename} /></div>}
+              {showHidden && <div className="mt-6"><PersonGrid persons={hidden} onRename={rename} onSetHidden={setHidden} /></div>}
             </div>
           )}
         </div>
@@ -131,14 +141,36 @@ export default function PeoplePage() {
   );
 }
 
-function PersonGrid({ persons, onRename }: { persons: Person[], onRename: (person: Person, name: string | null) => void }) {
+// Unnamed people get an × in the corner to hide them ("not someone I want to label"); hidden
+// people get a restore button instead. Always visible on touch screens, on hover otherwise.
+function PersonGrid({ persons, onRename, onSetHidden }: {
+  persons: Person[],
+  onRename: (person: Person, name: string | null) => void,
+  onSetHidden: (person: Person, hidden: boolean) => void,
+}) {
   return (
     <div className="grid grid-cols-[repeat(auto-fill,minmax(112px,1fr))] gap-x-4 gap-y-6">
       {persons.map((person) => (
-        <div key={person.id} className="flex flex-col items-center min-w-0">
-          <Link href={`/people/${person.id}`} className="rounded-full hover:ring-4 hover:ring-black/10 transition-shadow">
-            <FaceAvatar person={person} size={104} />
-          </Link>
+        <div key={person.id} className="group flex flex-col items-center min-w-0">
+          <div className="relative">
+            <Link href={`/people/${person.id}`} className={`block rounded-full hover:ring-4 hover:ring-black/10 transition-shadow ${person.hidden ? 'opacity-50' : ''}`}>
+              <FaceAvatar person={person} size={104} />
+            </Link>
+            {(person.hidden || person.name === null) && (
+              <button
+                onClick={() => onSetHidden(person, !person.hidden)}
+                title={person.hidden ? 'Show on the People page again' : 'Hide — not someone to label'}
+                aria-label={person.hidden ? 'Unhide' : 'Hide'}
+                className="absolute top-0.5 right-0.5 w-6 h-6 rounded-full bg-white shadow flex items-center justify-center text-black/40 hover:text-black/80 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 [@media(hover:none)]:opacity-100 transition-opacity"
+              >
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  {person.hidden
+                    ? <path d="M3.5 5.5H9C10.3807 5.5 11.5 6.61929 11.5 8C11.5 9.38071 10.3807 10.5 9 10.5H6M3.5 5.5L5.5 3.5M3.5 5.5L5.5 7.5" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" />
+                    : <path d="M4 4L10 10M4 10L10 4" stroke="currentColor" strokeLinecap="round" />}
+                </svg>
+              </button>
+            )}
+          </div>
           <div className="mt-2 w-full flex flex-col items-center min-w-0 text-sm">
             <PersonNameInput person={person} onSave={(name) => onRename(person, name)} className="max-w-full text-center" />
             <span className="text-xs text-black/35">{person.photoCount} photo{person.photoCount === 1 ? '' : 's'}</span>
