@@ -66,3 +66,20 @@ export interface Favorite {
   path: string;
   name: string;
 }
+// A face's box as fractions (0-1) of the image as displayed (after rotation)
+export interface FaceBox {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+export interface Person {
+  id: number;
+  name: string | null;
+  hidden: boolean;
+  photoCount: number;
+  // Distinct days they were photographed on; one-day people are mostly strangers at an event
+  dayCount: number;
+  cover: (FaceBox & { path: string, orientation: number | null }) | null;
+}

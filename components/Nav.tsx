@@ -10,6 +10,7 @@ import { useAtomValue } from 'jotai';
 const NAV_ITEMS = [
   { label: 'Browse', href: '/' },
   { label: 'Search', href: '/search' },
+  { label: 'People', href: '/people' },
   {
     label: 'Favorites',
     href: '/favorites',

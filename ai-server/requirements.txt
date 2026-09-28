@@ -20,6 +20,11 @@ psycopg[binary]
 aiohttp
 numpy
 
+# Face search (scripts/index_faces.py, scripts/cluster_faces.py)
+insightface
+onnxruntime
+opencv-python-headless
+
 # Development dependencies
 black
 pylint 

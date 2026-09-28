@@ -2,7 +2,7 @@
 
 import { useAtom, useAtomValue } from 'jotai';
 import { selectedItemsAtom, allContentsAtom, useFavoriteIds, credentialsAtom, useLoadFavorites, currentFolderCoverAtom } from '@/lib/atoms';
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, ReactNode } from "react";
 import { usePathname } from 'next/navigation';
 import TrashIcon from "./icons/TrashIcon";
 import HeartIcon from "./icons/HeartIcon";
@@ -21,19 +21,26 @@ function parentFolder(path: string) {
   return trimmed.slice(0, trimmed.lastIndexOf('/') + 1);
 }
 
-export default function SelectedItemsUI({ deleteCallback }: { deleteCallback: (items: BucketItemWithBlob[]) => void }) {
+// extraActions: page-specific toolbar buttons for the selected images (e.g. "Not this person")
+type ExtraActions = (images: BucketItemWithBlob[], buttonClassName: string) => ReactNode;
+
+export default function SelectedItemsUI({ deleteCallback, extraActions }: {
+  deleteCallback: (items: BucketItemWithBlob[]) => void,
+  extraActions?: ExtraActions,
+}) {
   const [selectedItems, setSelectedItems] = useAtom(selectedItemsAtom);
 
-  return <ItemsUI selectedItems={selectedItems} deleteCallback={(items) => {
+  return <ItemsUI selectedItems={selectedItems} extraActions={extraActions} deleteCallback={(items) => {
     deleteCallback(items);
     setSelectedItems({});
   }} />
 }
 
-export function ItemsUI({ selectedItems, deleteCallback, altStyle }: {
+export function ItemsUI({ selectedItems, deleteCallback, altStyle, extraActions }: {
   selectedItems: { [path: string]: BucketItemWithBlob },
   deleteCallback: (items: BucketItemWithBlob[]) => void,
-  altStyle?: boolean
+  altStyle?: boolean,
+  extraActions?: ExtraActions,
 }) {
   const [showConfirm, setShowConfirm] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -195,6 +202,10 @@ export function ItemsUI({ selectedItems, deleteCallback, altStyle }: {
                 size={altStyle ? 20 : 24}
               />
             </button>
+          )}
+          {selectedImages.length > 0 && extraActions?.(
+            selectedImages,
+            altStyle ? 'rounded hover:bg-white/10 group p-0.5' : "py-0.5 px-4 hover:bg-white hover:shadow-sm rounded-full group",
           )}
           {selectedImages.length > 0 && <button
             onClick={(e: React.MouseEvent<HTMLButtonElement>) => {

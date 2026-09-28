@@ -1,32 +1,14 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef, Suspense } from 'react';
-import { BucketItemWithBlob, ImageMetadata } from '@/lib/types';
+import { useState, useEffect, useCallback, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import debounce from 'lodash.debounce';
-import { getFileType, getThumbnailUrl } from '@/lib/utils';
 import Header from '@/components/Header';
 import FullscreenContainer from '@/components/FullscreenContainer';
 import Browser from '@/components/Browser';
 import SelectedItemsUI from '@/components/SelectedItemsUI';
-
-const PAGE_SIZE = 50;
-
-type RankedResult = { id: number, similarity: number };
-
-function getCredentialsFromStorage() {
-  return JSON.parse(localStorage.getItem('doCredentials') || '{}');
-}
-
-async function toItems(results: ImageMetadata[]): Promise<BucketItemWithBlob[]> {
-  return Promise.all(results.map(async (result) => ({
-    type: getFileType(result.path),
-    name: result.name,
-    path: result.path,
-    thumbnailBlobUrl: await getThumbnailUrl(result.path),
-    metadata: result,
-  })));
-}
+import { useRankedSearch } from '@/lib/hooks/useRankedSearch';
+import { PersonChip } from '@/components/FaceAvatar';
 
 export default function SearchPage() {
   return <Suspense>
@@ -36,14 +18,7 @@ export default function SearchPage() {
 
 function SearchPageInner() {
   const [query, setQuery] = useState('');
-  const [items, setItems] = useState<BucketItemWithBlob[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  // Every result for the current query, best first; items holds the ones loaded so far.
-  const [ranked, setRanked] = useState<RankedResult[]>([]);
-  const [loadedCount, setLoadedCount] = useState(0);
-  const [loadingMore, setLoadingMore] = useState(false);
-  // Bumped per search so responses for an outdated query are dropped.
-  const searchGeneration = useRef(0);
+  const { items, setItems, persons, isLoading, setIsLoading, search, loadMore, loadingMore, hasMore } = useRankedSearch();
   const searchParams = useSearchParams();
   const router = useRouter();
 
@@ -80,73 +55,10 @@ function SearchPageInner() {
     });
   }, [searchParams, router]);
 
-  const performSearch = async (searchQuery: string) => {
+  const performSearch = (searchQuery: string) => {
     updateUrl(searchQuery);
-
-    const generation = ++searchGeneration.current;
-    setRanked([]);
-    setLoadedCount(0);
-
-    if (!searchQuery.trim()) {
-      setItems([]);
-      return;
-    }
-
-    setIsLoading(true);
-    try {
-      const credentials = getCredentialsFromStorage();
-      const response = await fetch(`/api/embeddings/search?q=${encodeURIComponent(searchQuery)}`, {
-        headers: {
-          'X-DO-ACCESS-KEY-ID': credentials.accessKeyId,
-          'X-DO-SECRET-ACCESS-KEY': credentials.secretAccessKey,
-        }
-      });
-
-      if (!response.ok) {
-        throw new Error('Search failed');
-      }
-
-      const data: { ranked: RankedResult[], results: ImageMetadata[] } = await response.json();
-      const newItems = await toItems(data.results);
-      if (generation !== searchGeneration.current) return;
-
-      setRanked(data.ranked);
-      setLoadedCount(Math.min(PAGE_SIZE, data.ranked.length));
-      setItems(newItems);
-    } catch (error) {
-      console.error('Search error:', error);
-    } finally {
-      if (generation === searchGeneration.current) setIsLoading(false);
-    }
+    return search(searchQuery);
   };
-
-  const loadMore = useCallback(async () => {
-    if (loadingMore || loadedCount >= ranked.length) return;
-
-    const generation = searchGeneration.current;
-    const page = ranked.slice(loadedCount, loadedCount + PAGE_SIZE);
-    setLoadingMore(true);
-    try {
-      const response = await fetch('/api/metadata/by_ids', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ids: page.map(r => r.id), credentials: getCredentialsFromStorage() }),
-      });
-      if (!response.ok) throw new Error('Failed to load more results');
-
-      const { rows }: { rows: ImageMetadata[] } = await response.json();
-      const similarityById = new Map(page.map(r => [r.id, r.similarity]));
-      const newItems = await toItems(rows.map(row => ({ ...row, similarity: similarityById.get(row.id) })));
-      if (generation !== searchGeneration.current) return;
-
-      setItems(items => [...items, ...newItems]);
-      setLoadedCount(count => count + page.length);
-    } catch (error) {
-      console.error('Load more error:', error);
-    } finally {
-      setLoadingMore(false);
-    }
-  }, [loadingMore, loadedCount, ranked]);
 
   // Debounce search to avoid too many requests
   const debouncedSearch = useCallback(debounce(performSearch, 300), []);
@@ -168,6 +80,12 @@ function SearchPageInner() {
 
       {/* Results Grid */}
       <div className="max-w-7xl mx-auto px-4">
+        {query !== '' && persons.length > 0 && (
+          <div className="flex items-center gap-2 pt-4 text-sm text-black/50">
+            Photos with
+            {persons.map((person) => <PersonChip key={person.id} person={person} />)}
+          </div>
+        )}
         {query === '' ? (
           <FullscreenContainer>
             <div className="text-black/30">
@@ -182,7 +100,7 @@ function SearchPageInner() {
           allContents={items}
           loading={isLoading}
           onLoadMore={loadMore}
-          hasMore={loadedCount < ranked.length}
+          hasMore={hasMore}
           loadingMore={loadingMore}
           onDelete={(path) => {
             setItems(items.filter(item => item.path !== path))
@@ -191,4 +109,4 @@ function SearchPageInner() {
       </div>
     </div>
   );
-} 
+}
