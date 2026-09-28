@@ -13,6 +13,7 @@ import TopBar from './TopBar';
 import LoadingSpinner from './LoadingSpinner';
 import VideoPlayer from './VideoPlayer';
 import FaceTags from './FaceTags';
+import { useIsTouch } from '@/lib/hooks/useIsTouch';
 
 let lastScale = 1;
 let lastPosition = { x: 0, y: 0 };
@@ -48,6 +49,15 @@ export default function ImageViewer({
   const [showFilmstrip, setShowFilmstrip] = useState(true);
   const [editing, setEditing] = useState<string | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  // Touch devices: "fullscreen" hides the viewer chrome on a black background instead (iPhone
+  // browsers have no Fullscreen API); tapping the black area brings it back
+  const isTouch = useIsTouch();
+  const [immersive, setImmersive] = useState(false);
+  const chromeShown = showFilmstrip && !immersive;
+  // Horizontal finger drag, in px, while swiping between photos
+  const [swipeX, setSwipeX] = useState(0);
+  const [swipeSettling, setSwipeSettling] = useState(false);
+  const swipe = useRef<{ x: number, y: number, axis: 'x' | 'y' | null } | null>(null);
   const [scale, setScale] = useState(1);
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
@@ -160,6 +170,18 @@ export default function ImageViewer({
   }, [windowImages, image.path]);
 
   const toggleFullscreen = async () => {
+    if (isTouch) {
+      const entering = !immersive;
+      setImmersive(entering);
+      // Android can also hide the browser's own bars
+      try {
+        if (entering && document.fullscreenEnabled && !document.fullscreenElement) await containerRef.current?.requestFullscreen();
+        if (!entering && document.fullscreenElement) await document.exitFullscreen();
+      } catch (error) {
+        console.error('Fullscreen failed:', error);
+      }
+      return;
+    }
     if (!document.fullscreenElement) {
       await containerRef.current?.requestFullscreen();
       setIsFullscreen(true);
@@ -172,6 +194,8 @@ export default function ImageViewer({
   useEffect(() => {
     const handleFullscreenChange = () => {
       setIsFullscreen(!!document.fullscreenElement);
+      // Leaving native fullscreen (e.g. Android back gesture) leaves immersive mode too
+      if (!document.fullscreenElement) setImmersive(false);
     };
 
     document.addEventListener('fullscreenchange', handleFullscreenChange);
@@ -292,8 +316,54 @@ export default function ImageViewer({
     };
   }, [imageRef, idx, editing, image]);
 
+  // Swiping sideways on the photo moves between photos (touch only, not while zoomed or on videos)
+  const canSwipe = isTouch && image.type !== 'video' && scale === 1;
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (!canSwipe || e.touches.length !== 1) return;
+    swipe.current = { x: e.touches[0].clientX, y: e.touches[0].clientY, axis: null };
+    setSwipeSettling(false);
+  };
+  const handleTouchMove = (e: React.TouchEvent) => {
+    const start = swipe.current;
+    if (!start || e.touches.length !== 1) return;
+    const dx = e.touches[0].clientX - start.x;
+    const dy = e.touches[0].clientY - start.y;
+    if (!start.axis && Math.max(Math.abs(dx), Math.abs(dy)) > 10) start.axis = Math.abs(dx) > Math.abs(dy) ? 'x' : 'y';
+    if (start.axis !== 'x') return;
+    // Resist past the first/last photo
+    const blocked = (dx > 0 && !hasPrevious) || (dx < 0 && !hasNext);
+    setSwipeX(blocked ? dx * 0.25 : dx);
+  };
+  const handleTouchEnd = () => {
+    const start = swipe.current;
+    swipe.current = null;
+    if (!start || start.axis !== 'x') return;
+    const threshold = Math.min(80, window.innerWidth * 0.2);
+    setSwipeX(0);
+    // A completed swipe shows the next photo in place; a short one springs back
+    if (swipeX <= -threshold && hasNext) onNext?.();
+    else if (swipeX >= threshold && hasPrevious) onPrevious?.();
+    else setSwipeSettling(true);
+  };
+
+  // In immersive mode, a tap on the black around the photo brings the viewer chrome back
+  const handleContentClick = (e: React.MouseEvent) => {
+    if (!immersive) return;
+    const img = imageRef.current;
+    if (img?.naturalWidth && image.type !== 'video') {
+      const box = img.getBoundingClientRect();
+      const fit = Math.min(box.width / img.naturalWidth, box.height / img.naturalHeight);
+      const width = img.naturalWidth * fit;
+      const height = img.naturalHeight * fit;
+      const left = box.left + (box.width - width) / 2;
+      const top = box.top + (box.height - height) / 2;
+      if (e.clientX >= left && e.clientX <= left + width && e.clientY >= top && e.clientY <= top + height) return;
+    }
+    toggleFullscreen();
+  };
+
   return (
-    <div ref={containerRef} className="fixed h-screen inset-0 bg-white z-50 flex flex-col">
+    <div ref={containerRef} className={`fixed h-[100dvh] inset-0 z-50 flex flex-col transition-colors duration-300 ${immersive ? 'bg-black' : 'bg-white'}`}>
       <TopBar
         onPrevious={onPrevious}
         onNext={onNext}
@@ -301,10 +371,10 @@ export default function ImageViewer({
         toggleFullscreen={toggleFullscreen}
         setShowInfo={setShowInfo}
         image={image}
-        showFilmstrip={showFilmstrip}
+        showFilmstrip={chromeShown}
         idx={idx}
         total={total}
-        isFullscreen={isFullscreen}
+        isFullscreen={isFullscreen || immersive}
         editing={editing}
         setEditing={setEditing}
         showFaces={showFaces}
@@ -312,7 +382,15 @@ export default function ImageViewer({
       />
 
       {/* Main content */}
-      <div className={`${showFilmstrip ? 'mt-4' : ''} flex-1 flex flex-col w-full items-center justify-center relative transition-all duration-300 overflow-hidden`}>
+      <div
+        className={`${chromeShown ? 'mt-4' : ''} flex-1 flex flex-col w-full items-center justify-center relative transition-all duration-300 overflow-hidden`}
+        style={isTouch ? { touchAction: 'pinch-zoom' } : undefined}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+        onTouchCancel={handleTouchEnd}
+        onClick={handleContentClick}
+      >
         {/* Image container */}
         {image.type === 'video' && image.blobUrl ? (
           <VideoPlayer key={image.path} video={image} />
@@ -324,22 +402,24 @@ export default function ImageViewer({
               alt={image.name}
               className={`w-full h-full object-contain transition-none cursor-${scale > 1 ? 'grab' : 'default'} ${isDragging ? 'cursor-grabbing' : ''}`}
               style={{
-                transform: `translate(${position.x}px, ${position.y}px) scale(${scale})`,
+                transform: `translate(${position.x + swipeX}px, ${position.y}px) scale(${scale})`,
                 transformOrigin: 'center',
+                transition: swipeSettling ? 'transform 200ms ease-out' : undefined,
               }}
+              onTransitionEnd={() => setSwipeSettling(false)}
               onMouseDown={handleMouseDown}
               onMouseMove={handleMouseMove}
               onMouseUp={handleMouseUp}
               onMouseLeave={handleMouseUp}
               draggable={false}
             />
-            {showFaces && image.metadata?.id ? (
+            {showFaces && !immersive && image.metadata?.id ? (
               <FaceTags
                 imageId={image.metadata.id}
                 imageRef={imageRef}
                 imageUrl={image.blobUrl}
                 scale={scale}
-                position={position}
+                position={{ x: position.x + swipeX, y: position.y }}
               />
             ) : null}
             <Minimap
@@ -361,7 +441,7 @@ export default function ImageViewer({
       {/* Toggle filmstrip button */}
       <button
         onClick={() => setShowFilmstrip(prev => !prev)}
-        className="absolute bottom-4 right-4 p-2 rounded-md bg-white/10 text-white hover:bg-black/5 z-50"
+        className={`absolute bottom-4 right-4 p-2 rounded-md bg-white/10 text-white hover:bg-black/5 z-50 ${immersive ? 'hidden' : ''}`}
         aria-label="Toggle filmstrip"
       >
         <svg className="w-6 h-6" fill="none" stroke="black" viewBox="0 0 32 16">
@@ -377,11 +457,11 @@ export default function ImageViewer({
         credentials={credentials}
         editing={editing}
         setEditing={setEditing}
-        showFilmstrip={showFilmstrip && showInfo}
+        showFilmstrip={chromeShown && showInfo}
       />}
 
       {/* Filmstrip drawer */}
-      <Carousel images={windowImages} shown={showFilmstrip} onSelectImage={onSelectImage} />
+      <Carousel images={windowImages} shown={chromeShown} onSelectImage={onSelectImage} />
     </div>
   );
 } 

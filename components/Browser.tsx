@@ -351,7 +351,7 @@ export default function Browser({
             </div>
           </FullscreenContainer>
         ) : (
-          <div className="pb-20 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 max-w-7xl p-8 mx-auto">
+          <div className="pb-20 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-px max-w-7xl p-8 mx-auto">
             {contents.map((item) => (
               <ItemTile
                 key={item.path}

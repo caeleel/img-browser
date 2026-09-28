@@ -200,6 +200,7 @@ export default function FaceTags({ imageId, imageRef, imageUrl, scale, position 
           {drawing && (
             <div
               className="absolute inset-0 pointer-events-auto cursor-crosshair touch-none"
+              onTouchStart={(e) => e.stopPropagation()}  // drawing, not swiping to the next photo
               onPointerDown={onPointerDown}
               onPointerMove={onPointerMove}
               onPointerUp={onPointerUp}

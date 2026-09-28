@@ -65,3 +65,88 @@ html {
     animation: none;
   }
 }
+
+/* Final Fantasy style menu hand (public/cursor.png, 16x12 pixel art) pointing at the hovered grid
+   tile, near its top, poking 24px out past its left edge. Desktop only (a real mouse), bobbing in two-frame steps
+   like the original. */
+.ff-cursor {
+  display: none;
+  width: 48px;
+  height: 36px;
+  top: 16px;
+  left: -24px;
+  image-rendering: pixelated;
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.35));
+  animation: ff-cursor-bob 0.5s steps(1, end) infinite;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  [data-item-tile]:hover .ff-cursor {
+    display: block;
+  }
+}
+
+@keyframes ff-cursor-bob {
+  0% { transform: translateX(0); }
+  50% { transform: translateX(3px); }
+}
+
+/* Selected tiles sink into the floor. Seen from straight above, the photo (the pit's floor)
+   shrinks toward the centre by --sink on every side, and the four walls between the rim and the
+   floor come into view, meeting at diagonal seams. Walls are vertical so they're darker than the
+   floor, lit from the top-left: top and left walls face away from the light and are darkest.
+   --sink is registered so it can animate. */
+@property --sink {
+  syntax: '<length>';
+  inherits: true;
+  initial-value: 0px;
+}
+
+.tile-sink {
+  --sink: 0px;
+  transition: --sink 120ms ease-out;
+}
+
+.tile-sink.tile-sunk {
+  --sink: 10px;
+}
+
+.tile-floor {
+  inset: var(--sink);
+}
+
+.tile-wall {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.tile-wall-top {
+  background: #b4b4b4;
+  clip-path: polygon(0 0, 100% 0, calc(100% - var(--sink)) var(--sink), var(--sink) var(--sink));
+}
+
+.tile-wall-left {
+  background: #a6a6a6;
+  clip-path: polygon(0 0, var(--sink) var(--sink), var(--sink) calc(100% - var(--sink)), 0 100%);
+}
+
+.tile-wall-right {
+  background: #cbcbcb;
+  clip-path: polygon(100% 0, 100% 100%, calc(100% - var(--sink)) calc(100% - var(--sink)), calc(100% - var(--sink)) var(--sink));
+}
+
+.tile-wall-bottom {
+  background: #d8d8d8;
+  clip-path: polygon(0 100%, var(--sink) calc(100% - var(--sink)), calc(100% - var(--sink)) calc(100% - var(--sink)), 100% 100%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ff-cursor {
+    animation: none;
+  }
+
+  .tile-sink {
+    transition: none;
+  }
+}

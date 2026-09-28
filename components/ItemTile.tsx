@@ -66,7 +66,7 @@ function ImageTile({ item }: {
         src={blobUrl}
         alt={item.name}
         draggable={false}
-        className={`w-full h-64 object-cover ${rotation}`}
+        className={`w-full h-full object-cover ${rotation}`}
       />
       {item.metadata?.similarity && (
         <div className="absolute top-1 right-1 hidden group-hover:flex">
@@ -149,12 +149,23 @@ export function ItemTile({ item, handleDirectoryClick, handleImageClick }: {
     }
   }
 
+  // The cell is a hole in a tiled floor: selecting sinks the photo into it (see .tile-sink in
+  // globals.css), shrinking it toward the centre with the pit's four walls around it.
   return <button
     data-item-tile
     data-path={item.path}
     onClick={handleClick}
-    className={`w-full h-64 relative cursor-default flex items-center bg-black/5 hover:border-black border-4 justify-center ${isSelected ? 'border-black' : 'border-white'} overflow-hidden group select-none`}
+    className={`tile-sink w-full h-64 relative isolate cursor-default group select-none hover:z-10 ${isSelected ? 'tile-sunk' : ''}`}
   >
-    {innerTile()}
+    <span className="tile-wall tile-wall-top" aria-hidden />
+    <span className="tile-wall tile-wall-right" aria-hidden />
+    <span className="tile-wall tile-wall-bottom" aria-hidden />
+    <span className="tile-wall tile-wall-left" aria-hidden />
+    <div className="tile-floor absolute overflow-hidden flex items-center justify-center bg-black/5">
+      {innerTile()}
+    </div>
+    {/* Hover pointer (desktop only), near the top, poking 24px out past the tile's left edge */}
+    {/* eslint-disable-next-line @next/next/no-img-element */}
+    <img src="/cursor.png" alt="" aria-hidden draggable={false} className="ff-cursor absolute z-20 pointer-events-none" />
   </button>
 }
